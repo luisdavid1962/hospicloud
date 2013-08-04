@@ -10,3 +10,6 @@ django-userena
 django-chosen
 django-bootstrap-pagination
 django-crispy-forms
+django-storages
+boto
+requests

@@ -270,5 +270,5 @@ TIME_ZONE = 'America/Tegucigalpa'
 #EMAIL_HOST_USER = 'me@gmail.com'
 #EMAIL_HOST_PASSWORD = 'password'
 
-#HAYSTACK_SIGNAL_PROCESSOR = 'queued_search.signals.QueuedSignalProcessor'
-QUEUE_BACKEND = 'dummy'
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
+STATICFILES_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
