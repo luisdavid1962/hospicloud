@@ -24,7 +24,7 @@
     <div class="row">
         <div class="span12">
             <p>
-                Recibí de {{ recibo.cliente }}, la cantidad de {% intword recibo.integer %} Lempiras
+                Recibí de {{ recibo.cliente }}, la cantidad de {{  recibo.integer|intword }} Lempiras
                 con {% intword recibo.fractional %} centavos, por concepto de
                 {% for venta in recibo.ventas %}
                     {{ venta.item }}
