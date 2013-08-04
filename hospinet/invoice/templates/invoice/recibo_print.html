@@ -3,22 +3,22 @@
 {% load crispy_forms_tags %}
 {% load humanize %}
     <div class="row">
-        <div class="span3">
-
-        </div>
-        <div class="span6">
+        <div class="span12">
             <section class="page-header text-center">
-                <h1>
-                    Centro de Diagnóstico y Médico Hospitalario
-                    <small>
-                        Colonia el Quiquisque , Contiguo a Fábrica de Tábacos Internacional Colombus <br />
-                        Danli, El Paraíso, Tel 27632121
-                    </small>
-                </h1>
+                <h4>
+                Centro de Diagnóstico y Médico Hospitalario
+                <br />
+                <small>
+                    Colonia el Quiquiste, Contiguo a Fábrica de Tábacos Internacional Colombus <br />
+                    Danli, El Paraíso, Tel 27632121
+                </small>
+                </h4>
             </section>
         </div>
-        <div class="span3">
-            <h2>Por L. {{ recibo.total }}</h2>
+    </div>
+    <div class="row">
+        <div class="span3 offset9 text-right">
+            <h5>Por L. {{ recibo.total }}</h5>
         </div>
     </div>
     <div class="row">
@@ -27,18 +27,23 @@
                 Recibí de {{ recibo.cliente }}, la cantidad de {{  recibo.integer|intword }} Lempiras
                 con {{ recibo.fractional|intword }} centavos, por concepto de
                 {% for venta in recibo.ventas.all %}
-                    {{ venta.item }}
+                    {{ venta.cantidad }} {{ venta.item }}
                 {% endfor %}
             </p>
         </div>
     </div>
     <div class="row">
-        <div class="span6 offset6">
+        <div class="span6 offset6 text-right">
+            <br />
+            <br />
             Danlí, {{ recibo.created }}
         </div>
     </div>
     <div class="row">
         <div class="span12 text-center">
+            <br />
+            <br />
+            <br />
             Firma
         </div>
     </div>
