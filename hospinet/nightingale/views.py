@@ -23,14 +23,21 @@ from django.views.generic import (ListView, UpdateView, DetailView, CreateView,
                                   RedirectView, DeleteView, FormView)
 from django.contrib import messages
 from django.utils import timezone
+from inventory.models import ItemTemplate
 
-from nightingale.forms import (CargoForm, EvolucionForm, GlicemiaForm, HonorarioForm,
-                               InsulinaForm, GlucosuriaForm, IngestaForm, ExcretaForm, NotaEnfermeriaForm,
-                               OrdenMedicaForm, SignoVitalForm, MedicamentoForm, DosisForm, DevolucionForm,
-                               SumarioForm, DosificarForm, MedicamentoUpdateForm, OxigenoTerapiaForm)
+from nightingale.forms import (CargoForm, EvolucionForm, GlicemiaForm,
+                               HonorarioForm, PreCargoForm,
+                               InsulinaForm, GlucosuriaForm, IngestaForm,
+                               ExcretaForm, NotaEnfermeriaForm,
+                               OrdenMedicaForm, SignoVitalForm,
+                               MedicamentoForm, DosisForm, DevolucionForm,
+                               SumarioForm, DosificarForm,
+                               MedicamentoUpdateForm, OxigenoTerapiaForm)
 from nightingale.models import (Cargo, Evolucion, Glicemia, Insulina, Honorario,
-                                Glucosuria, Ingesta, Excreta, NotaEnfermeria, OrdenMedica, SignoVital,
-                                Medicamento, Dosis, Devolucion, Sumario, OxigenoTerapia)
+                                Glucosuria, Ingesta, Excreta, NotaEnfermeria,
+                                OrdenMedica, SignoVital,
+                                Medicamento, Dosis, Devolucion, Sumario,
+                                OxigenoTerapia)
 from spital.models import Admision
 from spital.views import AdmisionFormMixin
 from users.mixins import LoginRequiredMixin, UserFormMixin
@@ -54,11 +61,15 @@ class NightingaleIndexView(ListView, LoginRequiredMixin):
             context['promedio'] = 0
         else:
             context['promedio'] = sum(a.tiempo_hospitalizacion()
-                                      for a in admisiones) / self.queryset.count()
+                                      for a in
+                                      admisiones) / self.queryset.count()
 
         context['puntos'] = '[0 , 0],' + u','.join('[{0}, {1}]'.format(n + 1,
-                                                                       admisiones[n].tiempo_hospitalizacion())
-                                                   for n in range(self.queryset.count()))
+                                                                       admisiones[
+                                                                           n]
+                                                                       .tiempo_hospitalizacion())
+                                                   for n in
+                                                   range(self.queryset.count()))
 
         return context
 
@@ -107,6 +118,14 @@ class NightingaleDetailView(DetailView, LoginRequiredMixin):
     template_name = 'enfermeria/nightingale_detail.html'
     slug_field = 'uuid'
 
+    def get_context_data(self, **kwargs):
+
+        context = super(NightingaleDetailView, self).get_context_data(**kwargs)
+
+        context['fecha'] = timezone.now()
+
+        return context
+
 
 class SignosDetailView(DetailView, LoginRequiredMixin):
     """Muestra los datos sobre los signos vitales de una :class:`Persona` en
@@ -125,7 +144,8 @@ class SignosDetailView(DetailView, LoginRequiredMixin):
         """
 
         context = super(SignosDetailView, self).get_context_data(**kwargs)
-        signos = self.object.signos_vitales.extra(order_by=['fecha_y_hora']).all()
+        signos = self.object.signos_vitales.extra(
+            order_by=['fecha_y_hora']).all()
 
         context['min'] = self.object.hospitalizacion.strftime('%Y-%m-%d %H:%M')
 
@@ -137,8 +157,12 @@ class SignosDetailView(DetailView, LoginRequiredMixin):
         else:
             context['temp_promedio'] = self.object.temperatura_promedio
             context['pulso_promedio'] = self.object.pulso_promedio
-            context['presion_diastolica_promedio'] = self.object.presion_diastolica_promedio
-            context['presion_sistolica_promedio'] = self.object.presion_sistolica_promedio
+            context[
+                'presion_diastolica_promedio'] = self.object\
+                .presion_diastolica_promedio
+            context[
+                'presion_sistolica_promedio'] = self.object\
+                .presion_sistolica_promedio
             inicio = signos[0].fecha_y_hora - timezone.timedelta(minutes=5)
             context['min'] = inicio.strftime('%Y-%m-%d %H:%M')
 
@@ -176,31 +200,31 @@ class ResumenDetailView(NightingaleDetailView, SignosDetailView):
     slug_field = 'uuid'
 
 
-class BaseCreateView(CreateView, LoginRequiredMixin):
+class AdmisionFormMixin(CreateView, LoginRequiredMixin):
     """Permite llenar el formulario de una clase que requiera
     :class:`Admision`es de manera previa - DRY"""
 
     def get_context_data(self, **kwargs):
-        context = super(BaseCreateView, self).get_context_data(**kwargs)
+        context = super(AdmisionFormMixin, self).get_context_data(**kwargs)
         context['admision'] = self.admision
         return context
 
-    def get_form_kwargs(self):
+    def get_initial(self):
         """Agrega la :class:`Admision` obtenida como el valor a utilizar en el
         formulario que será llenado posteriormente"""
-
-        kwargs = super(BaseCreateView, self).get_form_kwargs()
-        kwargs.update({'initial': {'admision': self.admision.id,
-                                   'fecha_y_hora': timezone.now(),
-                                   'usuario': self.request.user.id}})
-        return kwargs
+        initial = super(AdmisionFormMixin, self).get_initial()
+        initial = initial.copy()
+        initial['usuario'] = self.request.user.id
+        initial['fecha_y_hora'] = timezone.now()
+        initial['admision'] = self.admision.id
+        return initial
 
     def dispatch(self, *args, **kwargs):
         """Obtiene la :class:`Admision` que se entrego como argumento en la
         url"""
 
         self.admision = get_object_or_404(Admision, pk=kwargs['admision'])
-        return super(BaseCreateView, self).dispatch(*args, **kwargs)
+        return super(AdmisionFormMixin, self).dispatch(*args, **kwargs)
 
     def form_valid(self, form):
         """Guarda el objeto generado espeficando la :class:`Admision` obtenida
@@ -217,7 +241,7 @@ class BaseCreateView(CreateView, LoginRequiredMixin):
         return HttpResponseRedirect(self.get_success_url())
 
 
-class CargoCreateView(BaseCreateView):
+class CargoCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Cargo` a una :class:`Admision`"""
 
     model = Cargo
@@ -232,7 +256,8 @@ class CargoCreateView(BaseCreateView):
 
         self.object = form.save(commit=False)
 
-        item = self.request.user.profile.inventario.buscar_item(self.object.cargo)
+        item = self.request.user.profile.inventario.buscar_item(
+            self.object.cargo)
         item.disminuir(self.object.cantidad)
 
         self.object.save()
@@ -240,6 +265,28 @@ class CargoCreateView(BaseCreateView):
         messages.info(self.request, u"Hospitalización Actualizada")
 
         return HttpResponseRedirect(self.get_success_url())
+
+
+class ChosenCargoCreateView(CargoCreateView):
+
+    model = Cargo
+    form_class = PreCargoForm
+    template_name = 'enfermeria/cargo_create.html'
+
+    def get_initial(self):
+        """Agrega la :class:`Admision` obtenida como el valor a utilizar en el
+        formulario que será llenado posteriormente"""
+        initial = super(ChosenCargoCreateView, self).get_initial()
+        initial = initial.copy()
+        initial['cargo'] = self.cargo.id
+        return initial
+
+    def dispatch(self, *args, **kwargs):
+        """Obtiene la :class:`Admision` que se entrego como argumento en la
+        url"""
+
+        self.cargo = get_object_or_404(ItemTemplate, pk=kwargs['item'])
+        return super(ChosenCargoCreateView, self).dispatch(*args, **kwargs)
 
 
 class CargoDeleteView(DeleteView, LoginRequiredMixin):
@@ -257,7 +304,8 @@ class CargoDeleteView(DeleteView, LoginRequiredMixin):
         """
         self.object = self.get_object()
 
-        item = self.request.user.profile.inventario.buscar_item(self.object.cargo)
+        item = self.request.user.profile.inventario.buscar_item(
+            self.object.cargo)
         item.incrementar(self.object.cantidad)
 
         self.object.delete()
@@ -267,7 +315,13 @@ class CargoDeleteView(DeleteView, LoginRequiredMixin):
         return self.admision.get_absolute_url()
 
 
-class EvolucionCreateView(BaseCreateView):
+class CargoUpdateView(UpdateView, LoginRequiredMixin):
+    model = Cargo
+    form_class = CargoForm
+    template_name = 'enfermeria/cargo_create.html'
+
+
+class EvolucionCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Evolucion` a una :class:`Admision`"""
 
     model = Evolucion
@@ -275,7 +329,7 @@ class EvolucionCreateView(BaseCreateView):
     template_name = 'enfermeria/evolucion_create.html'
 
 
-class GlicemiaCreateView(BaseCreateView):
+class GlicemiaCreateView(AdmisionFormMixin):
     """Permite registrar un :class:`Glicemia` efectuada a una
     :class:`Persona` durante una :class:`Admision`"""
 
@@ -284,7 +338,7 @@ class GlicemiaCreateView(BaseCreateView):
     template_name = 'enfermeria/glicemia_create.html'
 
 
-class InsulinaCreateView(BaseCreateView):
+class InsulinaCreateView(AdmisionFormMixin):
     """Permite crear un dosis de :class:`Insulina` suministrada a una
     :class:`Persona` durante :class:`Admision`"""
 
@@ -293,7 +347,7 @@ class InsulinaCreateView(BaseCreateView):
     template_name = 'enfermeria/insulina_create.html'
 
 
-class GlucosuriaCreateView(BaseCreateView):
+class GlucosuriaCreateView(AdmisionFormMixin):
     """Permite registrar un :class:`Glucosuria` de una :class:`Persona`
     durante una :class:`Admision`"""
 
@@ -302,7 +356,7 @@ class GlucosuriaCreateView(BaseCreateView):
     template_name = 'enfermeria/glucosuria_create.html'
 
 
-class IngestaCreateView(BaseCreateView):
+class IngestaCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Examen` a una :class:`Persona`"""
 
     model = Ingesta
@@ -310,7 +364,7 @@ class IngestaCreateView(BaseCreateView):
     template_name = 'enfermeria/ingesta_create.html'
 
 
-class ExcretaCreateView(BaseCreateView):
+class ExcretaCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Examen` a una :class:`Persona`"""
 
     model = Excreta
@@ -318,7 +372,7 @@ class ExcretaCreateView(BaseCreateView):
     template_name = 'enfermeria/excreta_create.html'
 
 
-class NotaCreateView(BaseCreateView):
+class NotaCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Examen` a una :class:`Persona`"""
 
     model = NotaEnfermeria
@@ -326,7 +380,7 @@ class NotaCreateView(BaseCreateView):
     template_name = 'enfermeria/nota_create.html'
 
 
-class OrdenCreateView(BaseCreateView):
+class OrdenCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Examen` a una :class:`Persona`"""
 
     model = OrdenMedica
@@ -334,7 +388,7 @@ class OrdenCreateView(BaseCreateView):
     template_name = 'enfermeria/orden_create.html'
 
 
-class SignoVitalCreateView(BaseCreateView):
+class SignoVitalCreateView(AdmisionFormMixin):
     """Permite crear un :class:`Examen` a una :class:`Persona`"""
 
     model = SignoVital
@@ -342,7 +396,7 @@ class SignoVitalCreateView(BaseCreateView):
     template_name = 'enfermeria/signo_create.html'
 
 
-class MedicamentoCreateView(BaseCreateView):
+class MedicamentoCreateView(AdmisionFormMixin):
     """Permite preescribir un :class:`Medicamento` a una :class:`Admision`"""
 
     model = Medicamento
@@ -353,7 +407,7 @@ class MedicamentoCreateView(BaseCreateView):
         """Agrega la :class:`Admision` obtenida como el valor a utilizar en el
         formulario que será llenado posteriormente"""
 
-        kwargs = super(BaseCreateView, self).get_form_kwargs()
+        kwargs = super(AdmisionFormMixin, self).get_form_kwargs()
         kwargs.update({'initial': {'admision': self.admision.id,
                                    'inicio': timezone.now(),
                                    'usuario': self.request.user.id}})
@@ -379,7 +433,8 @@ class DosisCreateView(CreateView, LoginRequiredMixin):
         return context
 
     def get_form_kwargs(self):
-        """Agrega el :class:`Medicamento` obtenida como el valor a utilizar en el
+        """Agrega el :class:`Medicamento` obtenida como el valor a utilizar
+        en el
         formulario que será llenado posteriormente"""
 
         kwargs = super(DosisCreateView, self).get_form_kwargs()
@@ -393,7 +448,8 @@ class DosisCreateView(CreateView, LoginRequiredMixin):
         """Obtiene la :class:`Admision` que se entrego como argumento en la
         url"""
 
-        self.medicamento = get_object_or_404(Medicamento, pk=kwargs['medicamento'])
+        self.medicamento = get_object_or_404(Medicamento,
+                                             pk=kwargs['medicamento'])
         return super(DosisCreateView, self).dispatch(*args, **kwargs)
 
     def form_valid(self, form):
@@ -427,7 +483,8 @@ class DosisSuministrarView(RedirectView, LoginRequiredMixin):
         dosis.fecha_y_hora = timezone.now()
         dosis.save()
         messages.info(self.request, u'¡Dosis registrada como suministrada!')
-        return reverse('nightingale-view-id', args=[dosis.medicamento.admision.id])
+        return reverse('nightingale-view-id',
+                       args=[dosis.medicamento.admision.id])
 
 
 class MedicamentoSuspenderView(RedirectView, LoginRequiredMixin):
@@ -445,13 +502,13 @@ class MedicamentoSuspenderView(RedirectView, LoginRequiredMixin):
         return reverse('nightingale-view-id', args=[medicamento.admision.id])
 
 
-class DevolucionCreateView(BaseCreateView):
+class DevolucionCreateView(AdmisionFormMixin):
     model = Devolucion
     form_class = DevolucionForm
     template_name = 'enfermeria/devolucion_create.html'
 
 
-class SumarioCreateView(BaseCreateView):
+class SumarioCreateView(AdmisionFormMixin):
     model = Sumario
     form_class = SumarioForm
     template_name = 'enfermeria/sumario.html'
@@ -484,10 +541,12 @@ class DosificarMedicamentoView(FormView, LoginRequiredMixin):
     def dispatch(self, request, *args, **kwargs):
         self.medicamento = get_object_or_404(Medicamento,
                                              pk=kwargs['medicamento'])
-        return super(DosificarMedicamentoView, self).dispatch(request, *args, **kwargs)
+        return super(DosificarMedicamentoView, self).dispatch(request, *args,
+                                                              **kwargs)
 
     def get_context_data(self, **kwargs):
-        context = super(DosificarMedicamentoView, self).get_context_data(**kwargs)
+        context = super(DosificarMedicamentoView, self).get_context_data(
+            **kwargs)
 
         context['medicamento'] = self.medicamento
 
@@ -510,7 +569,8 @@ class MedicamentoUpdateView(UpdateView, LoginRequiredMixin):
     context_object_name = 'medicamento'
 
 
-class OxigenoTerapiaCreateView(AdmisionFormMixin, UserFormMixin, LoginRequiredMixin):
+class OxigenoTerapiaCreateView(AdmisionFormMixin, UserFormMixin,
+                               LoginRequiredMixin):
     model = OxigenoTerapia
     form_class = OxigenoTerapiaForm
 

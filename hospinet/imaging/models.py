@@ -27,9 +27,7 @@ from django.db import models
 from django.db.models import permalink
 from django_extensions.db.fields import UUIDField
 from django.contrib.auth.models import User
-from private_files.models.fields import PrivateFileField
 from sorl.thumbnail import ImageField
-from south.modelsinspector import add_introspection_rules
 
 from persona.models import Persona
 from inventory.models import ItemTemplate
@@ -163,7 +161,6 @@ class Dicom(models.Model):
         """Permite extraer una :class:`Imagen` que se encuentra incrustada en
         los datos del archivo :class:`Dicom` adjunto.
         """
-
         r = requests.get(self.archivo.url)
         name = os.path.split(self.archivo.name)[0]
         with tempfile.NamedTemporaryFile as f:
@@ -175,23 +172,9 @@ class Dicom(models.Model):
             self.imagen.save(u"{0}.png".format(name), upload, save=True)
 
         self.convertido = True
-
         self.save()
 
     @permalink
     def get_absolute_url(self):
-        """Obtiene la URL absoluta"""
 
         return 'examen-view-id', [self.examen.uuid]
-
-
-add_introspection_rules([
-                            (
-                                [PrivateFileField], # Class(es) these apply to
-                                [], # Positional arguments (not used)
-                                {# Keyword argument
-                                    #"ordered": ["ordered", {}],
-                                    #"sort": ["sort", {}],
-                                },
-                            ),
-                        ], ["^private_files\.models\.fields\.PrivateFileField"])
