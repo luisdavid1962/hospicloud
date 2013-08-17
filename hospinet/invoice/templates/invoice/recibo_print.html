@@ -17,18 +17,20 @@
         </div>
     </div>
     <div class="row">
-        <div class="span3 offset9 text-right">
+        <div class="span3">
+            <h5>Recibo {{ recibo.numero }}</h5>
+        </div>
+        <div class="span3 offset6 text-right">
             <h5>Por L. {{ recibo.total }}</h5>
         </div>
     </div>
     <div class="row">
         <div class="span12">
             <p>
-                Recibí de {{ recibo.cliente }}, la cantidad de {{  recibo.integer|intword }} Lempiras
-                con {{ recibo.fractional|intword }} centavos, por concepto de
-                {% for venta in recibo.ventas.all %}
-                    {{ venta.cantidad }} {{ venta.item }}
-                {% endfor %}
+                Recibí de {{ recibo.cliente }},
+                <br> la cantidad de {{  recibo.integer|intword }} Lempiras
+                con {{ recibo.fractional|intword }} centavos,
+                <br />por concepto de  {% for venta in recibo.ventas.all %} {{ venta.cantidad }} {{ venta.item }} {% endfor %}
             </p>
         </div>
     </div>
