@@ -40,7 +40,8 @@ class Precio(object):
             .precio_de_venta / Decimal(
             100)
 
-        return self.cargo.precio_de_venta + aumento - disminucion
+        return (self.cargo.precio_de_venta + aumento - disminucion).quantize(
+            Decimal("0.01"))
 
 
 class Turno(object):
@@ -111,14 +112,14 @@ class Evolucion(models.Model):
 
     admision = models.ForeignKey(Admision, related_name='evoluciones')
     fecha_y_hora = models.DateTimeField(default=timezone.now)
-    nota = models.CharField(max_length=200, blank=True)
+    nota = models.TextField(blank=True)
     usuario = models.ForeignKey(User, blank=True, null=True,
                                 related_name='evoluciones')
 
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
 
-        return reverse('nightingale-view-id', args=[self.admision.id])
+        return reverse('enfermeria-evolucion', args=[self.admision.id])
 
 
 class Cargo(TimeStampedModel, Precio):
@@ -154,7 +155,7 @@ class OrdenMedica(models.Model):
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
 
-        return reverse('nightingale-view-id', args=[self.admision.id])
+        return reverse('enfermeria-ordenes', args=[self.admision.id])
 
 
 class Ingesta(models.Model, Turno):
