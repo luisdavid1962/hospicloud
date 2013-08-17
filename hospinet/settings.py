@@ -269,3 +269,6 @@ TIME_ZONE = 'America/Tegucigalpa'
 
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
 STATICFILES_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
+#HAYSTACK_SIGNAL_PROCESSOR = 'queued_search.signals.QueuedSignalProcessor'
+QUEUE_BACKEND = 'dummy'
+INVOICE_OFFSET = 0
