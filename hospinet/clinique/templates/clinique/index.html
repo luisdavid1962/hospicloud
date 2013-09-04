@@ -8,11 +8,18 @@
         </div>
     </section>
 </div>
-{% for consultorio in user.consultorios.all %}
 <div class="row">
-    <div class="span12">
+    <aside class="span3">
+        <nav class="sidebar-nav">
+            <ul class="nav nav-tabs nav-stacked">
+                <li><a href="{% url 'consultorio-agregar' %}">Agregar Consultorio</a></li>
+            </ul>
+        </nav>
+    </aside>
+    <div class="span9">
+    {% for consultorio in user.consultorios.all %}
         <div class="row">
-            <div class="span12">
+            <div class="span9">
                 <div class="page-header">
                     <h2>
                         {{ consultorio }}
@@ -21,7 +28,7 @@
                 </div>
             </div>
         </div>
+    {% endfor %}
     </div>
 </div>
-{% endfor %}
 {% endblock %}

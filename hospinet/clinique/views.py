@@ -23,7 +23,7 @@ from django.views.generic.edit import FormMixin
 
 from clinique.forms import (PacienteForm, CitaForm, EvaluacionForm,
                             ConsultaForm, SeguimientoForm, LecturaSignosForm,
-                            DiagnosticoClinicoForm)
+                            DiagnosticoClinicoForm, ConsultorioForm)
 from clinique.models import (Paciente, Cita, Consulta, Evaluacion,
                              Seguimiento, LecturaSignos, Consultorio,
                              DiagnosticoClinico)
@@ -55,6 +55,10 @@ class ConsultorioDetailView(SingleObjectMixin, ListView, LoginRequiredMixin):
     def get_queryset(self):
         self.object = self.get_object(Consultorio.objects.all())
         return self.object.pacientes.all()
+
+class ConsultorioCreateView(CurrentUserFormMixin, CreateView):
+    model = Consultorio
+    form_class = ConsultorioForm
 
 
 class ConsultorioMixin(View):
