@@ -94,6 +94,7 @@ class Admision(models.Model):
         ('H', 'Hospitalizar'),
         ('I', 'Ingresado'),
         ('C', 'Alta'),
+        ('Q', 'Cancelada'),
     )
 
     ARANCELES = (
@@ -407,3 +408,7 @@ class PreAdmision(TimeStampedModel):
         """Obtiene la URL absoluta"""
 
         return reverse('admision-index')
+
+    def __unicode__(self):
+
+        return u"Preadmision de {0} {1}".format(self.emergencia.persona.nombre_completo(), self.completada)
