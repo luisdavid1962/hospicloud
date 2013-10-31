@@ -1,9 +1,13 @@
 {% extends 'base.html' %}
 {% block content %}
 {% load crispy_forms_tags %}
+{% load staticfiles %}
 {% load humanize %}
     <div class="row">
-        <div class="span12">
+        <div class="span3">
+            <img src="{% static 'images/logo.jpg' %}">
+        </div>
+        <div class="span9">
             <section class="page-header text-center">
                 <h4>
                 Centro de Diagnóstico y Médico Hospitalario
