@@ -236,7 +236,7 @@ class Admision(models.Model):
         centro hospitalario"""
         dias = 0
         fraccion_dias = 0
-        if self.hospitalizacion == None:
+        if self.hospitalizacion is None:
             dias = (timezone.now() - self.momento).days
             fraccion_dias = (timezone.now() - self.momento).total_seconds() / 3600 / 24
             if dias < 0:
@@ -277,6 +277,11 @@ class Admision(models.Model):
         dias = (ahora - self.ultimo_cobro).days
         if dias < 1:
             return 1
+
+        if self.estado == 'C':
+
+            return (self.fecha_alta - self.ultimo_cobro).days
+
         return (ahora - self.ultimo_cobro).days
 
     def precio_diario(self):
@@ -297,8 +302,9 @@ class Admision(models.Model):
 
         return (self.tiempo_cobro() * self.precio_diario()).quantize(Decimal("0.01"))
 
-    def dar_alta(self):
+    def dar_alta(self, day):
 
+        self.fecha_alta = day
         self.estado = 'C'
         self.fecha_alta = timezone.now()
         medicamentos = (m.suspender() for m in self.medicamentos.all())
@@ -346,10 +352,7 @@ class Admision(models.Model):
             oxigeno.facturada = True
             oxigeno.save()
 
-        for honorario in self.honorarios.all():
-            items[honorario.item] += honorario.monto
-            honorario.facturada = True
-            honorario.save()
+        # TODO: Agregar honorarios médicos a la automatización de facturación
 
         return sorted(items)
 
@@ -370,17 +373,19 @@ class Admision(models.Model):
 
         return (ahora - self.momento).total_seconds() / 60
 
-    def estado_de_cuenta(self):
+    def estado_de_cuenta(self, total=False, honorarios=True):
 
-        cargos = sum(c.valor() for c in self.cargos.filter(facturada=False).all())
-        oxigeno = sum(o.valor() for o in self.oxigeno_terapias.all())
+        total = Decimal()
+        total += sum(c.valor() for c in self.cargos.filter(facturada=total).all())
+        total += sum(o.valor() for o in self.oxigeno_terapias.filter(facturada=total).all())
         honorarios = self.honorarios.aggregate(models.Sum('monto'))
 
         if not honorarios['monto__sum']:
             honorarios['monto__sum'] = 0
+        if honorarios:
+            total += honorarios['monto__sum']
 
-        return (cargos + oxigeno + Decimal(honorarios['monto__sum'])
-                + self.debido()).quantize(Decimal("0.01"))
+        return (total + self.debido()).quantize(Decimal("0.01"))
 
     def agrupar_cargos(self):
 
@@ -394,6 +399,10 @@ class Admision(models.Model):
             agrupados[cargo.cargo].valor += cargo.valor()
 
         return dict(agrupados)
+
+    def total(self):
+
+        return self.estado_de_cuenta(True)
 
 
 class PreAdmision(TimeStampedModel):
@@ -412,3 +421,13 @@ class PreAdmision(TimeStampedModel):
     def __unicode__(self):
 
         return u"Preadmision de {0} {1}".format(self.emergencia.persona.nombre_completo(), self.completada)
+
+
+class Especialidad(TimeStampedModel):
+
+    nombre = models.CharField(max_length=50)
+
+
+class Doctor(TimeStampedModel):
+
+    nombre = models.CharField(max_length=50)
