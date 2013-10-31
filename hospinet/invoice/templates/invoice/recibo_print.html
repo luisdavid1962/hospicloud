@@ -4,12 +4,13 @@
 {% load staticfiles %}
 {% load humanize %}
     <div class="row">
-        <div class="span3">
-            <img src="{% static 'images/logo.jpg' %}">
-        </div>
-        <div class="span9">
+        <div class="span12">
             <section class="page-header text-center">
-                <h4>
+                <div class="row">
+                    <div class="span3">
+                        <img src="{% static 'images/logo.jpg' %}">
+                    </div>
+                <h4 class="span9">
                 Centro de Diagnóstico y Médico Hospitalario
                 <br />
                 <small>
@@ -17,6 +18,7 @@
                     Danli, El Paraíso, Tel 27632121
                 </small>
                 </h4>
+                </div>
             </section>
         </div>
     </div>
