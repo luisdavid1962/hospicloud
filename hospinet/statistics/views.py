@@ -20,13 +20,15 @@ from datetime import date
 from decimal import Decimal
 from datetime import datetime, time, timedelta
 from collections import defaultdict
+from operator import attrgetter
 
 from django.views.generic.base import TemplateView
 from django.shortcuts import redirect
 from crispy_forms.layout import Fieldset
+from imaging.models import Examen
 
 from statistics.forms import ReporteAnualForm, ReporteMensualForm
-from spital.models import Habitacion, Admision
+from spital.models import Habitacion, Admision, PreAdmision
 from invoice.forms import PeriodoForm
 from emergency.models import Emergencia
 from users.mixins import LoginRequiredMixin
@@ -85,9 +87,10 @@ class Estadisticas(TemplateView, LoginRequiredMixin):
 
     def get_fechas(self):
 
-        self.fin = date.today()
-        mes = timedelta(30)
-        self.inicio = self.fin - mes
+        now = date.today()
+        self.fin = date(now.year, now.month,
+                        calendar.monthrange(now.year, now.month)[1])
+        self.inicio = date(now.year, now.month, 1)
         self.inicio = datetime.combine(self.inicio, time.min)
         self.fin = datetime.combine(self.fin, time.max)
 
@@ -106,13 +109,127 @@ class Estadisticas(TemplateView, LoginRequiredMixin):
 
     def get_habitaciones(self, context):
         habitaciones = defaultdict(HabitacionAdapter)
+        context['dias'] = 0
+        context['total'] = 0
+
         for habitacion in Habitacion.objects.all():
             habitaciones[habitacion].admisiones += self.admisiones.filter(
                 habitacion=habitacion).count()
         for admision in self.admisiones.all():
             habitaciones[
                 admision.habitacion].dias += admision.tiempo_hospitalizado()
-        context['habitaciones'] = sorted(habitaciones.iteritems())
+        context['habitaciones'] = sorted(habitaciones.items(),
+                                         key=lambda x: x[0].tipo)
+
+        for habitacion in Habitacion.objects.all():
+            context['total'] += habitaciones[habitacion].admisiones
+            context['dias'] += habitaciones[habitacion].dias
+
+    def get_doctor(self, context):
+
+        doctores = defaultdict(int)
+
+        for admision in self.admisiones.all():
+            doctor = admision.doctor.upper().split('/')[0].rstrip()
+
+            doctores[doctor] += 1
+
+        context['doctores'] = reversed(
+            sorted(doctores.iteritems(), key=lambda x: x[1]))
+        context['total_doctores'] = sum(doctores[d] for d in doctores)
+        return context
+
+    def get_year(self, context):
+
+        today = date.today()
+        admisiones = Admision.objects.filter(momento__year=today.year,
+                                             habitacion__isnull=False)
+        meses = defaultdict(int)
+        for n in range(1, 13):
+            meses[n] = 0
+
+        for admision in admisiones.all():
+            meses[admision.momento.month] += 1
+
+        context['meses'] = list()
+        for mes in sorted(meses.iteritems()):
+            context['meses'].append((calendar.month_name[mes[0]], mes[1]))
+
+        return context
+
+    def get_emergencies(self, context):
+
+        self.emergencias = Emergencia.objects.filter(
+            created__gte=self.inicio,
+            created__lte=self.fin
+        )
+
+        context['emergencias'] = self.emergencias
+
+        doctores = defaultdict(int)
+        for emergencia in self.emergencias:
+            doctores[emergencia.usuario] += 1
+
+        context['emergencia_doctores'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['emergencia_grafico'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['emergencia_grafico2'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['emergencia_total'] = self.emergencias.count()
+
+        return context
+
+    def get_preadmision(self, context):
+
+        self.preadmisiones = PreAdmision.objects.filter(
+            emergencia__created__gte=self.inicio,
+            emergencia__created__lte=self.fin
+        )
+
+        context['preadmisiones'] = self.emergencias
+
+        doctores = defaultdict(int)
+        for preadmision in self.preadmisiones:
+            doctores[preadmision.emergencia.usuario] += 1
+
+        context['preadmision_doctores'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['preadmision_grafico'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['preadmision_grafico2'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['preadmision_total'] = self.preadmisiones.count()
+
+        return context
+
+    def get_examenes(self, context):
+
+        self.examenes = Examen.objects.filter(
+            fecha__gte=self.inicio,
+            fecha__lte=self.fin
+        )
+
+        context['examenes'] = self.examenes
+
+        doctores = defaultdict(int)
+        examenes = defaultdict(int)
+        for examen in self.examenes:
+            doctores[examen.usuario] += 1
+            examenes[examen.tipo_de_examen.item.item_type.first()] += 1
+
+        context['examenes_tecnicos'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['examenes_grafico'] = reversed(
+            sorted(examenes.items(), key=lambda x: x[1]))
+        context['examenes_grafico2'] = reversed(
+            sorted(examenes.items(), key=lambda x: x[1]))
+        context['examenes_tipo'] = reversed(
+            sorted(examenes.items(), key=lambda x: x[1]))
+
+        context['examenes_total'] = self.examenes.count()
+
+        return context
 
     def get_context_data(self, **kwargs):
 
@@ -123,8 +240,12 @@ class Estadisticas(TemplateView, LoginRequiredMixin):
         self.get_admisiones()
 
         self.get_habitaciones(context)
-
         self.get_diagnosticos(context)
+        self.get_doctor(context)
+        self.get_year(context)
+        self.get_emergencies(context)
+        self.get_preadmision(context)
+        self.get_examenes(context)
 
         return context
 
@@ -277,7 +398,8 @@ class PeriodoMixin(TemplateView):
 
         if self.form.is_valid():
 
-            self.inicio = datetime.combine(self.form.cleaned_data['inicio'], time.min)
+            self.inicio = datetime.combine(self.form.cleaned_data['inicio'],
+                                           time.min)
             self.fin = datetime.combine(self.form.cleaned_data['fin'], time.max)
 
         else:
@@ -343,12 +465,19 @@ class HabitacionPopularView(AdmisionPeriodoMixin, LoginRequiredMixin):
         context = super(HabitacionPopularView, self).get_context_data(**kwargs)
 
         habitaciones = defaultdict(HabitacionAdapter)
+        context['total'] = 0
+        context['dias'] = 0
         for habitacion in Habitacion.objects.all():
             habitaciones[habitacion].admisiones += self.admisiones.filter(
                 habitacion=habitacion).count()
 
         for admision in self.admisiones.all():
-            habitaciones[admision.habitacion].dias += admision.tiempo_hospitalizado()
+            habitaciones[
+                admision.habitacion].dias += admision.tiempo_hospitalizado()
+
+        for habitacion in Habitacion.objects.all():
+            context['total'] += habitaciones[habitacion].admisiones
+            context['dias'] += habitaciones[habitacion].dias
 
         context['habitaciones'] = sorted(habitaciones.iteritems())
         return context
@@ -460,7 +589,8 @@ class AdmisionPeriodo(AdmisionPeriodoMixin, LoginRequiredMixin):
 
         context['cargos'] = cargos.items()
         context['habitaciones'] = habitaciones.items()
-        context['total'] = sum(a.estado_de_cuenta(True) for a in self.admisiones)
+        context['total'] = sum(
+            a.estado_de_cuenta(True) for a in self.admisiones)
         return context
 
 
@@ -471,11 +601,13 @@ class TratanteEstadisticaView(AdmisionPeriodoMixin, LoginRequiredMixin):
 
         self.form = PeriodoForm(request.GET, prefix='admisiones')
 
-        return super(TratanteEstadisticaView, self).dispatch(request, *args, **kwargs)
+        return super(TratanteEstadisticaView, self).dispatch(request, *args,
+                                                             **kwargs)
 
     def get_context_data(self, **kwargs):
 
-        context = super(TratanteEstadisticaView, self).get_context_data(**kwargs)
+        context = super(TratanteEstadisticaView, self).get_context_data(
+            **kwargs)
         context['admisiones'] = self.admisiones
         if self.admisiones.count():
             context['tiempo_promedio'] = sum(a.tiempo_hospitalizado() for a in
@@ -531,11 +663,21 @@ class EmergenciaPeriodo(TemplateView):
         context['emergencias'] = self.emergencias
         # Calcular todos los cargos efectuados en estas emergencias
         cargos = defaultdict(Decimal)
+
+        doctores = defaultdict(int)
         for emergencia in self.emergencias:
 
             for cobro in emergencia.cobros.all():
                 cargos[cobro.cargo] += cobro.cantidad
+            doctores[emergencia.usuario] += 1
 
         context['cargos'] = cargos.items()
+
+        context['doctores'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['grafico'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
+        context['grafico2'] = reversed(
+            sorted(doctores.items(), key=lambda x: x[1]))
         context['total'] = sum(e.total() for e in self.emergencias)
         return context
