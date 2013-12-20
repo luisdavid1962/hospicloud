@@ -189,14 +189,12 @@ class Admision(models.Model):
         sido enviada a enfermeria para ingresar al hospital"""
 
         if self.hospitalizacion == None or self.hospitalizacion <= self.momento:
-            self.hospitalizacion = timezone.now()
             self.estado = 'H'
             self.save()
 
     def ingresar(self):
 
         if self.ingreso == None or self.ingreso <= self.momento:
-            self.ingreso = timezone.now()
             self.estado = 'I'
             self.save()
 
@@ -379,12 +377,7 @@ class Admision(models.Model):
         total = Decimal()
         total += sum(c.valor() for c in self.cargos.filter(facturada=total).all())
         total += sum(o.valor() for o in self.oxigeno_terapias.filter(facturada=total).all())
-        honorarios = self.honorarios.aggregate(models.Sum('monto'))
-
-        if not honorarios['monto__sum']:
-            honorarios['monto__sum'] = 0
-        if honorarios:
-            total += honorarios['monto__sum']
+        total += sum(h.item.precio_de_venta for h in self.honorarios.all())
 
         return (total + self.debido()).quantize(Decimal("0.01"))
 
@@ -400,6 +393,10 @@ class Admision(models.Model):
             agrupados[cargo.cargo].valor += cargo.valor()
 
         return dict(agrupados)
+
+    def descuento(self):
+
+        return sum(c.descuento() for c in self.cargos.all())
 
     def total(self):
 
@@ -432,3 +429,12 @@ class Especialidad(TimeStampedModel):
 class Doctor(TimeStampedModel):
 
     nombre = models.CharField(max_length=50)
+
+
+class Laboratorio(TimeStampedModel):
+
+    nombre = models.CharField(max_length=50)
+
+    def __unicode__(self):
+
+        return self.nombre
