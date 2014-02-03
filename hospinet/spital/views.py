@@ -16,25 +16,28 @@
 # License along with this library. If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime, time
+
 from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, InvalidPage
 from django.core.urlresolvers import reverse
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404, redirect
-from django.views.generic import (CreateView, ListView, TemplateView, DeleteView,
+from django.views.generic import (CreateView, ListView, TemplateView,
+                                  DeleteView,
                                   DetailView, RedirectView, UpdateView)
+from django.contrib import messages
+from crispy_forms.layout import Fieldset
+
 from persona.models import Persona
 from persona.views import PersonaCreateView
 from spital.forms import (AdmisionForm, HabitacionForm, PreAdmisionForm,
-                          IngresarForm)
-from spital.models import Admision, Habitacion, PreAdmision
+                          IngresarForm, DepositoForm)
+from spital.models import Admision, Habitacion, PreAdmision, Deposito
 from nightingale.models import Cargo
 from emergency.models import Emergencia
-from persona.forms import PersonaForm
-from django.contrib import messages
+from persona.forms import PersonaForm, PersonaSearchForm
 from users.mixins import LoginRequiredMixin
 from invoice.forms import PeriodoForm
-from crispy_forms.layout import Fieldset
 
 
 class AdmisionIndexView(ListView, LoginRequiredMixin):
@@ -52,23 +55,7 @@ class AdmisionIndexView(ListView, LoginRequiredMixin):
 
         context = super(AdmisionIndexView, self).get_context_data(**kwargs)
 
-        admisiones = self.queryset.all()
-
-        if self.queryset.count() == 0:
-            context['promedio'] = 0
-        else:
-            context['promedio'] = sum(a.tiempo_ahora()
-                                      for a in
-                                      admisiones) / self.queryset.count()
-
-        context['puntos'] = '[0 , 0],' + u','.join('[{0}, {1}]'.format(n + 1,
-                                                                       admisiones[
-                                                                           n].tiempo_ahora())
-                                                   for n in
-                                                   range(self.queryset.count()))
-
         context['preadmisiones'] = PreAdmision.objects.filter(completada=False)
-
         context['admision_periodo'] = PeriodoForm(prefix='admisiones')
         context[
             'admision_periodo'].helper.form_action = 'estadisticas-hospitalizacion'
@@ -111,7 +98,9 @@ class IngresarView(TemplateView, LoginRequiredMixin):
         página"""
 
         context = super(IngresarView, self).get_context_data()
+        context['persona_search_form'] = PersonaSearchForm()
         context['persona_form'] = PersonaForm()
+        context['persona_form'].helper.form_action = 'admision-ingresar-persona'
         return context
 
 
@@ -477,8 +466,12 @@ class HospitalizarView(UpdateView, LoginRequiredMixin):
 
 
 class AdmisionDeleteView(DeleteView, LoginRequiredMixin):
-
     model = Admision
 
     def get_success_url(self):
         return reverse('admision-index')
+
+
+class DepositoCreateView(AdmisionFormMixin):
+    model = Deposito
+    form_class = DepositoForm

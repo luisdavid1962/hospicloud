@@ -17,9 +17,11 @@
 
 from collections import defaultdict
 
+from constance import config
 from django.core.urlresolvers import reverse
 from django.db import models
 from django.contrib.auth.models import User
+from django.utils import timezone
 from django_extensions.db.models import TimeStampedModel
 
 from persona.models import Persona
@@ -51,6 +53,12 @@ class Emergencia(TimeStampedModel):
 
         return reverse('emergency-view-id', args=[self.id])
 
+    def tiempo(self):
+        ahora = timezone.now()
+        delta = ahora - self.created
+        hours, remainder = divmod(delta.seconds, 3600)
+        return hours
+
     def facturar(self):
         items = defaultdict(int)
 
@@ -59,6 +67,18 @@ class Emergencia(TimeStampedModel):
             cargo.facturado = True
             cargo.save()
 
+        horas = self.tiempo()
+
+        emergencia = ItemTemplate.objects.get(pk=config.EMERGENCIA)
+
+        items[emergencia] = 1
+        items[self.usuario.profile.honorario] = 1
+
+        if horas >= 1:
+            restante = horas - 1
+            extra = ItemTemplate.objects.get(pk=config.EXTRA_EMERGENCIA)
+            items[extra] = restante
+        
         return items
 
     def total(self):

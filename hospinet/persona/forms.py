@@ -18,6 +18,7 @@
 from django import forms
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Fieldset
+from django.utils import timezone
 
 from persona.models import (Persona, Fisico, EstiloVida, Antecedente,
                             AntecedenteFamiliar, AntecedenteObstetrico,
@@ -30,6 +31,19 @@ class FieldSetFormMixin(forms.Form):
         self.helper = FormHelper()
         self.helper.html5_required = True
         self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-md-4'
+        self.helper.field_class = 'col-md-7'
+        self.field_names = self.fields.keys()
+
+
+class FieldSetModelFormMixinNoButton(forms.ModelForm):
+    def __init__(self, *args, **kwargs):
+        super(FieldSetModelFormMixinNoButton, self).__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.html5_required = True
+        self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-md-4'
+        self.helper.field_class = 'col-md-7'
         self.field_names = self.fields.keys()
 
 
@@ -39,6 +53,8 @@ class FieldSetModelFormMixin(forms.ModelForm):
         self.helper = FormHelper()
         self.helper.html5_required = True
         self.helper.form_class = 'form-horizontal'
+        self.helper.label_class = 'col-md-4'
+        self.helper.field_class = 'col-md-7'
         self.field_names = self.fields.keys()
         self.helper.add_input(Submit('submit', u'Guardar'))
 
@@ -83,9 +99,8 @@ class PersonaForm(FieldSetModelFormMixin):
     class Meta:
         model = Persona
 
-    nacimiento = forms.DateTimeField(widget=forms.DateInput(
-        attrs={'class': 'datepicker'}, format='%d/%m/%Y'),
-                                     input_formats=('%d/%m/%Y',))
+    nacimiento = forms.DateField(widget=DateWidget(), required=False,
+                                 initial=timezone.now)
     domicilio = forms.CharField(required=True)
 
     def __init__(self, *args, **kwargs):
@@ -171,9 +186,8 @@ class AntecedenteQuirurgicoForm(BasePersonaForm):
     class Meta:
         model = AntecedenteQuirurgico
 
-    fecha = forms.DateTimeField(widget=forms.DateInput(
-        attrs={'class': 'datepicker'}, format='%d/%m/%Y'),
-                                input_formats=('%d/%m/%Y',))
+    fecha = forms.DateTimeField(widget=DateTimeWidget(), required=False,
+                                initial=timezone.now)
 
     def __init__(self, *args, **kwargs):
         super(AntecedenteQuirurgicoForm, self).__init__(*args, **kwargs)
