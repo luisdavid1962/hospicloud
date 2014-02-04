@@ -4,13 +4,13 @@
 {% load staticfiles %}
 {% load humanize %}
     <div class="row">
-        <div class="span12">
+        <div class="col-md-12">
             <section class="page-header text-center">
                 <div class="row">
                     <div class="span3">
                         <img src="{% static 'images/logo.jpg' %}">
                     </div>
-                <h4 class="span9">
+                <h4 class="col-md-9">
                 Centro de Diagnóstico y Médico Hospitalario
                 <br />
                 <small>
@@ -26,12 +26,12 @@
         <div class="span3">
             <h5>Recibo {{ recibo.numero }}</h5>
         </div>
-        <div class="span3 offset6 text-right">
+        <div class="col-md-3 col-md-offset-6 text-right">
             <h5>Por L. {{ recibo.total }}</h5>
         </div>
     </div>
     <div class="row">
-        <div class="span12">
+        <div class="col-md-12">
             <p>
                 Recibí de {{ recibo.cliente }},
                 <br> la cantidad de {{  recibo.integer|intword }} Lempiras
@@ -41,14 +41,14 @@
         </div>
     </div>
     <div class="row">
-        <div class="span6 offset6 text-right">
+        <div class="col-md-6 col-md-offset-6 text-right">
             <br />
             <br />
             Danlí, {{ recibo.created }}
         </div>
     </div>
     <div class="row">
-        <div class="span12 text-center">
+        <div class="col-md-12 text-center">
             <br />
             <br />
             <br />
