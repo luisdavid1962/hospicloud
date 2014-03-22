@@ -20,20 +20,23 @@ from django.db import models
 from django.db.models.signals import post_save
 from userena.models import UserenaBaseProfile
 from django_extensions.db.models import TimeStampedModel
+from tastypie.models import create_api_key
 
-from inventory.models import Inventario
+from inventory.models import Inventario, ItemTemplate
+from persona.models import Persona
 
 
 class UserProfile(UserenaBaseProfile):
-    user = models.OneToOneField(User, primary_key=True)
+    user = models.OneToOneField(User, primary_key=True, related_name="profile")
     inventario = models.ForeignKey(Inventario, related_name='usuarios',
                                    blank=True, null=True)
+    honorario = models.ForeignKey(ItemTemplate, related_name='usuarios',
+                                  blank=True, null=True)
+    persona = models.OneToOneField(Persona, related_name='profile', blank=True,
+                                   null=True)
 
     def __unicode__(self):
         return self.user.username
-
-
-User.profile = property(lambda u: UserProfile.objects.get_or_create(user=u)[0])
 
 
 def create_user_profile(sender, instance, created, **kwargs):
@@ -45,12 +48,9 @@ def create_user_profile(sender, instance, created, **kwargs):
 
 
 post_save.connect(create_user_profile, sender=User)
+post_save.connect(create_api_key, sender=User)
 
 
 class UserAction(TimeStampedModel):
     user = models.ForeignKey(User)
     action = models.TextField()
-
-
-class Hospital(models.Model):
-    nombre = models.CharField(max_length=200)

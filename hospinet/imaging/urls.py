@@ -17,17 +17,17 @@
 
 from django.conf.urls import patterns, url
 from imaging.views import (ExamenDetailView, ExamenCreateView,
-    ExamenUpdateView, ImagenCreateView, AdjuntoCreateView, ExamenListView,
+    ExamenUpdateView, ImagenCreateView, AdjuntoCreateView, ExamenIndexView,
     ExamenPersonaListView, PersonaExamenCreateView, ExamenPreCreateView,
     DicomDetailView, DicomCreateView, EstudioProgramadoListView,
     EstudioProgramadoCreateView, EstudioProgramadoEfectuarView,
     NotificarExamenView, EstudioPreCreateView, PersonaEstudioCreateView,
-    EstudioProgramadoDetailView)
+    EstudioProgramadoDetailView, EstudioCreateView)
 
 urlpatterns = patterns('',
     
     url(r'^$',
-        ExamenListView.as_view(),
+        ExamenIndexView.as_view(),
         name='examen-index'),
     
     url(r'^(?P<pk>\d+)/notificar$',
@@ -47,7 +47,7 @@ urlpatterns = patterns('',
         name='examen-efectuar'),
     
     url(r'^examenes$',
-        ExamenListView.as_view(),
+        ExamenIndexView.as_view(),
         name='examen-list'),
     
     url(r'^nuevo$',
@@ -93,4 +93,8 @@ urlpatterns = patterns('',
     url(r'^dicom/(?P<slug>[a-z0-9]{8}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{12})$',
         DicomDetailView.as_view(),
         name='dicom-view'),
+
+    url(r'^(?P<examen>\d+)/estudio/agregar$',
+        EstudioCreateView.as_view(),
+        name='examen-estudio-create'),
 )

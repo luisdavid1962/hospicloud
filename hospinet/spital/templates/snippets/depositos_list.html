@@ -1,0 +1,19 @@
+<table class="table table-responsive table-striped">
+    <caption>Dep&oacute;sitos</caption>
+    <thead>
+        <tr>
+            <th>Recibo</th>
+            <th>Fecha</th>
+            <th>Monto</th>
+        </tr>
+    </thead>
+    <tbody>
+    {% for deposito in admision.depositos.all %}
+        <tr>
+            <td><a href="{% url 'deposito-edit' deposito.id %}"><i class="fa fa-edit"></i></a>{{ deposito.recibo }}</td>
+            <td>{{ deposito.fecha }}</td>
+            <td>{{ deposito.monto }}</td>
+        </tr>
+    {% endfor %}
+    </tbody>
+</table>

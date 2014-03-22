@@ -26,6 +26,13 @@ from django.contrib.auth.models import User
 
 
 class Inventario(models.Model):
+
+
+    class Meta:
+        permissions = (
+            ('inventario', 'Permite al usuario gestionar inventario'),
+        )
+
     lugar = models.CharField(max_length=255, default='Bodega')
     puede_comprar = models.NullBooleanField(default=False, blank=True,
                                             null=True)
@@ -86,6 +93,8 @@ class ItemTemplate(TimeStampedModel):
                                        null=True, blank=True)
     comision = models.DecimalField(decimal_places=2, max_digits=4,
                                    default=Decimal("30.00"))
+    comision2 = models.DecimalField(decimal_places=2, max_digits=4,
+                                    default=Decimal("10.00"))
 
     def __unicode__(self):
         return self.descripcion
@@ -140,7 +149,8 @@ class Requisicion(TimeStampedModel):
         return reverse('requisicion', args=[self.id])
 
     def __unicode__(self):
-        return u'Requisición Número {1} de {0}'.format(self.inventario.lugar, self.id)
+        return u'Requisición Número {1} de {0}'.format(self.inventario.lugar,
+                                                       self.id)
 
     def buscar_item(self, item_template):
         qs = self.items.filter(item=item_template)
@@ -282,21 +292,25 @@ class TipoVenta(TimeStampedModel):
 
 
 class Historial(TimeStampedModel):
-    inventario = models.ForeignKey(Inventario, related_name='historico')
+    inventario = models.ForeignKey(Inventario, related_name='historiales')
     fecha = models.DateField(default=date.today())
 
     def __unicode__(self):
-
         return u'{0} el {1}'.format(self.inventario.lugar,
                                     self.fecha.strftime('%d/%m/Y'))
+
+    def get_absolute_url(self):
+        """Obtiene la URL absoluta"""
+
+        return reverse('historial', args=[self.id])
 
 
 class ItemHistorial(TimeStampedModel):
     historial = models.ForeignKey(Historial, related_name='items')
     item = models.ForeignKey(ItemTemplate, related_name='historicos')
+    cantidad = models.IntegerField(default=0)
 
     def __unicode__(self):
-
         return u'{0} {1} el {2}'.format(self.item.descripcion,
                                         self.historial.inventario.lugar,
                                         self.fecha.strftime('%d/%m/Y'))

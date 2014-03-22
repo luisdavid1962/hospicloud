@@ -14,17 +14,18 @@
 #
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
 from django.core.urlresolvers import reverse
 from django.db.models.query_utils import Q
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
+from django.utils.decorators import method_decorator
 from django.views.generic import (ListView, UpdateView, DetailView, CreateView,
                                   RedirectView, DeleteView, FormView)
 from django.contrib import messages
 from django.utils import timezone
-from inventory.models import ItemTemplate
+from guardian.decorators import permission_required
 
+from inventory.models import ItemTemplate
 from nightingale.forms import (CargoForm, EvolucionForm, GlicemiaForm,
                                HonorarioForm, PreCargoForm,
                                InsulinaForm, GlucosuriaForm, IngestaForm,
@@ -40,10 +41,16 @@ from nightingale.models import (Cargo, Evolucion, Glicemia, Insulina, Honorario,
                                 OxigenoTerapia)
 from spital.models import Admision
 from spital.views import AdmisionFormMixin
-from users.mixins import LoginRequiredMixin, UserFormMixin
+from users.mixins import LoginRequiredMixin, CurrentUserFormMixin
 
 
-class NightingaleIndexView(ListView, LoginRequiredMixin):
+class EnfermeriaPermissionMixin(LoginRequiredMixin):
+    @method_decorator(permission_required('nightingale.enfermeria'))
+    def dispatch(self, *args, **kwargs):
+        return super(EnfermeriaPermissionMixin, self).dispatch(*args, **kwargs)
+
+
+class NightingaleIndexView(ListView, EnfermeriaPermissionMixin):
     """Permite ingresar al lobby de Admisiones que estan siendo atendidas en
     una institucion hospitalaria"""
 
@@ -67,7 +74,7 @@ class NightingaleIndexView(ListView, LoginRequiredMixin):
         context['puntos'] = '[0 , 0],' + u','.join('[{0}, {1}]'.format(n + 1,
                                                                        admisiones[
                                                                            n]
-                                                                       .tiempo_hospitalizacion())
+                                                                           .tiempo_hospitalizacion())
                                                    for n in
                                                    range(self.queryset.count()))
 
@@ -119,7 +126,6 @@ class NightingaleDetailView(DetailView, LoginRequiredMixin):
     slug_field = 'uuid'
 
     def get_context_data(self, **kwargs):
-
         context = super(NightingaleDetailView, self).get_context_data(**kwargs)
 
         context['fecha'] = timezone.now()
@@ -158,10 +164,10 @@ class SignosDetailView(DetailView, LoginRequiredMixin):
             context['temp_promedio'] = self.object.temperatura_promedio
             context['pulso_promedio'] = self.object.pulso_promedio
             context[
-                'presion_diastolica_promedio'] = self.object\
+                'presion_diastolica_promedio'] = self.object \
                 .presion_diastolica_promedio
             context[
-                'presion_sistolica_promedio'] = self.object\
+                'presion_sistolica_promedio'] = self.object \
                 .presion_sistolica_promedio
             inicio = signos[0].fecha_y_hora - timezone.timedelta(minutes=5)
             context['min'] = inicio.strftime('%Y-%m-%d %H:%M')
@@ -200,7 +206,7 @@ class ResumenDetailView(NightingaleDetailView, SignosDetailView):
     slug_field = 'uuid'
 
 
-class AdmisionFormMixin(CreateView, LoginRequiredMixin):
+class AdmisionFormMixin(CreateView, CurrentUserFormMixin):
     """Permite llenar el formulario de una clase que requiera
     :class:`Admision`es de manera previa - DRY"""
 
@@ -214,11 +220,11 @@ class AdmisionFormMixin(CreateView, LoginRequiredMixin):
         formulario que será llenado posteriormente"""
         initial = super(AdmisionFormMixin, self).get_initial()
         initial = initial.copy()
-        initial['usuario'] = self.request.user.id
         initial['fecha_y_hora'] = timezone.now()
         initial['admision'] = self.admision.id
         return initial
 
+    @method_decorator(permission_required('nightingale.enfermeria'))
     def dispatch(self, *args, **kwargs):
         """Obtiene la :class:`Admision` que se entrego como argumento en la
         url"""
@@ -226,28 +232,13 @@ class AdmisionFormMixin(CreateView, LoginRequiredMixin):
         self.admision = get_object_or_404(Admision, pk=kwargs['admision'])
         return super(AdmisionFormMixin, self).dispatch(*args, **kwargs)
 
-    def form_valid(self, form):
-        """Guarda el objeto generado espeficando la :class:`Admision` obtenida
-        de los argumentos y el :class:`User` que esta utilizando la aplicación
-        """
 
-        self.object = form.save(commit=False)
-        self.object.admision = self.admision
-        self.usuario = self.request.user
-        self.object.save()
-
-        messages.info(self.request, u"Hospitalización Actualizada")
-
-        return HttpResponseRedirect(self.get_success_url())
-
-
-class CargoCreateView(AdmisionFormMixin):
+class CargoCreateView(AdmisionFormMixin, LoginRequiredMixin):
     """Permite crear un :class:`Cargo` a una :class:`Admision`"""
 
     model = Cargo
     form_class = CargoForm
     template_name = 'enfermeria/cargo_create.html'
-
 
     def form_valid(self, form):
         """Guarda el objeto generado espeficando la :class:`Admision` obtenida
@@ -267,15 +258,12 @@ class CargoCreateView(AdmisionFormMixin):
         return HttpResponseRedirect(self.get_success_url())
 
 
-class ChosenCargoCreateView(CargoCreateView):
-
+class ChosenCargoCreateView(CargoCreateView, LoginRequiredMixin):
     model = Cargo
     form_class = PreCargoForm
     template_name = 'enfermeria/cargo_create.html'
 
     def get_initial(self):
-        """Agrega la :class:`Admision` obtenida como el valor a utilizar en el
-        formulario que será llenado posteriormente"""
         initial = super(ChosenCargoCreateView, self).get_initial()
         initial = initial.copy()
         initial['cargo'] = self.cargo.id
@@ -508,26 +496,10 @@ class DevolucionCreateView(AdmisionFormMixin):
     template_name = 'enfermeria/devolucion_create.html'
 
 
-class SumarioCreateView(AdmisionFormMixin):
+class SumarioCreateView(AdmisionFormMixin, CurrentUserFormMixin):
     model = Sumario
     form_class = SumarioForm
     template_name = 'enfermeria/sumario.html'
-
-    def form_valid(self, form):
-        """Guarda el objeto generado espeficando la :class:`Admision` obtenida
-        de los argumentos y el :class:`User` que esta utilizando la aplicación
-        """
-
-        self.object = form.save(commit=False)
-        self.object.admision = self.admision
-        self.usuario = self.request.user
-        self.admision.dar_alta()
-        self.admision.save()
-        self.object.save()
-
-        messages.info(self.request, u"Hospitalización Actualizada")
-
-        return HttpResponseRedirect(self.get_success_url())
 
 
 class DosificarMedicamentoView(FormView, LoginRequiredMixin):
@@ -569,8 +541,7 @@ class MedicamentoUpdateView(UpdateView, LoginRequiredMixin):
     context_object_name = 'medicamento'
 
 
-class OxigenoTerapiaCreateView(AdmisionFormMixin, UserFormMixin,
-                               LoginRequiredMixin):
+class OxigenoTerapiaCreateView(AdmisionFormMixin, CurrentUserFormMixin):
     model = OxigenoTerapia
     form_class = OxigenoTerapiaForm
 
@@ -581,7 +552,7 @@ class OxigenoTerapiaUpdateView(UpdateView, LoginRequiredMixin):
     context_object_name = 'oxigeno_terapia'
 
 
-class HonorarioCreateView(AdmisionFormMixin, UserFormMixin, LoginRequiredMixin):
+class HonorarioCreateView(AdmisionFormMixin, CurrentUserFormMixin):
     model = Honorario
     form_class = HonorarioForm
 

@@ -14,403 +14,303 @@
 #
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
-from clinique.forms import (PacienteForm, TransaccionForm, CitaForm,
-    ConsultorioForm, ConsultaForm, RecetaForm, HistoriaClinicaForm, PagoForm,
-    OptometriaForm, DiaForm)
-from clinique.models import (Consultorio, Paciente, Transaccion, Cita, Pago,
-    Esperador, Consulta, Receta, HistoriaClinica, Optometria)
+from collections import defaultdict
 from django.core.urlresolvers import reverse
-from django.http import HttpResponseRedirect
-from django.shortcuts import get_object_or_404, redirect
-from django.views.generic import (TemplateView, DetailView, CreateView,
+from django.utils import timezone
+from django.utils.decorators import method_decorator
+from django.views.generic import (DetailView, CreateView, View,
                                   ListView, UpdateView)
-from persona.forms import PersonaForm
-from persona.models import Persona
-from persona.views import PersonaCreateView
-from django.contrib.auth.models import User
-from django.contrib.auth.forms import UserCreationForm
-from django.views.generic.base import RedirectView
-from django.contrib import messages
-from users.mixins import LoginRequiredMixin
+from django.views.generic.detail import SingleObjectMixin
+from django.shortcuts import get_object_or_404
+from django.views.generic.edit import FormMixin
+from guardian.decorators import permission_required
 
-class ConsultorioIndex(TemplateView):
-    
-    template_name = "consultorio/index.html"
+from clinique.forms import (PacienteForm, CitaForm, EvaluacionForm,
+                            ConsultaForm, SeguimientoForm, LecturaSignosForm,
+                            DiagnosticoClinicoForm, ConsultorioForm,
+                            CitaPersonaForm, CargoForm, OrdenMedicaForm,
+                            NotaEnfermeriaForm)
+from clinique.models import (Paciente, Cita, Consulta, Evaluacion,
+                             Seguimiento, LecturaSignos, Consultorio,
+                             DiagnosticoClinico, Cargo, OrdenMedica,
+                             NotaEnfermeria)
+from persona.forms import PersonaSearchForm, FisicoForm, AntecedenteForm, \
+    AntecedenteFamiliarForm, AntecedenteObstetricoForm, \
+    AntecedenteQuirurgicoForm, EstiloVidaForm, PersonaForm
+from persona.models import Fisico, Antecedente, AntecedenteFamiliar, \
+    AntecedenteObstetrico, AntecedenteQuirurgico, EstiloVida, Persona
+from persona.views import PersonaFormMixin
+from users.mixins import LoginRequiredMixin, CurrentUserFormMixin
 
-class ConsultorioCreateView(CreateView, LoginRequiredMixin):
-    
-    """Permite crear un :class:`Consultorio` para el usuario actual en caso de
-    que el mismo sea un doctor"""
-    
-    model = Consultorio
-    form_class = ConsultorioForm
-    template_name = "consultorio/consultorio_create.html"
-    
-    def form_valid(self, form):
-        
-        self.object = form.save(commit=False)
-        self.object.doctor = self.request.user.profile
-        self.object.save()
-        
-        return HttpResponseRedirect(self.get_success_url())
 
-class ConsultorioDetailView(DetailView, LoginRequiredMixin):
-    
-    """Permite mostrar los detalles de un :class:`Consultorio`
-    
-    En especifico se encarga de funciones como listar los pacientes, mostrar
-    el estado de las cuentas, mostrar la sala de espera
-    """
-    
-    template_name = 'consultorio/consultorio_detail.html'
-    model = Consultorio
-    context_object_name = 'consultorio'
-    slug_field = 'uuid'
-    
-    def get_context_data(self, **kwargs):
-        
-        context = super(ConsultorioDetailView, self).get_context_data(**kwargs)
-        context['formulario_diario'] = DiaForm()
-        return context
-
-class BaseCreateView(CreateView, LoginRequiredMixin):
-    
-    """Permite llenar el formulario de una clase que requiera
-    :class:`Consultorio`s de manera previa - DRY"""
-    
-    def get_context_data(self, **kwargs):
-        
-        context = super(BaseCreateView, self).get_context_data(**kwargs)
-        context['consultorio'] = self.consultorio
-        return context
-    
-    def get_form_kwargs(self):
-        
-        kwargs = super(BaseCreateView, self).get_form_kwargs()
-        kwargs.update({ 'initial':{'consultorio':self.consultorio.id}})
-        return kwargs
-    
+class ConsultorioPermissionMixin(LoginRequiredMixin):
+    @method_decorator(permission_required('clinique.consultorio'))
     def dispatch(self, *args, **kwargs):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=kwargs['consultorio'])
-        return super(BaseCreateView, self).dispatch(*args, **kwargs)
-    
-    def form_valid(self, form):
-        
-        self.object = form.save(commit=False)
-        self.object.consultorio = self.consultorio
-        self.object.save()
-        
-        return HttpResponseRedirect(self.get_success_url())
+        return super(ConsultorioPermissionMixin, self).dispatch(*args, **kwargs)
 
-class SecretariaCreateView(BaseCreateView):
-    
-    """Permite crear un :class:`User` que actuará como Secretaria(o) del
-    :class:`Usuario` doctor que es dueño del :class:`Consultorio`"""
-    
-    model = User
-    form_class = UserCreationForm
-    template_name = 'consultorio/secretaria_create.html'
-    
-    def form_valid(self, form):
-        
-        self.object = form.save()
-        self.consultorio.secretaria = self.object.profile
-        perfil_doctor = self.consultorio.doctor
-        self.object.profile.suscripcion = perfil_doctor.suscripcion
-        self.object.profile.suscriptor = perfil_doctor.user
-        self.consultorio.save()
-        self.object.save()
-        
-        return HttpResponseRedirect(self.get_success_url())
-    
-    def get_success_url(self):
-        
-        return reverse('consultorio-view', args=[self.consultorio.uuid])
 
-class PersonaPacienteCreateView(PersonaCreateView):
-    
-    template_name = 'persona/persona_nuevo.html'
-    
-    def get_success_url(self):
-        
-        return reverse('paciente-agregar', args=[self.object.id])
-
-class PacientePreCreateView(TemplateView):
-    
-    template_name = 'consultorio/paciente_agregar.html'
-    
-    def dispatch(self, *args, **kwargs):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=kwargs['consultorio'])
-        return super(PacientePreCreateView, self).dispatch(*args, **kwargs)
-    
-    def get_context_data(self, **kwargs):
-        
-        context = super(PacientePreCreateView, self).get_context_data()
-        context['consultorio'] = self.consultorio
-        context['persona_form'] = PersonaForm()
-        return context
-
-class PersonaConsultorioCreateView(PersonaCreateView):
-    
-    template_name = 'persona/persona_nuevo.html'
-    
-    def dispatch(self, *args, **kwargs):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=kwargs['consultorio'])
-        return super(PersonaConsultorioCreateView, self).dispatch(*args, **kwargs)
-    
-    def get_success_url(self):
-        
-        return reverse('consultorio-paciente-agregar', args=[self.consultorio.id, self.object.id])
-
-class PacienteCreateView(RedirectView):
-    
-    """Crea un :class:`Paciente` para el :class:`Consultorio` especificado y
-    redirige hacia el recien creado"""
-    
-    model = Paciente
-    form_class = PacienteForm
-    template_name = "consultorio/paciente_create.html"
-    
-    def dispatch(self, *args, **kwargs):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=kwargs['consultorio'])
-        self.persona = get_object_or_404(Persona, pk=kwargs['persona'])
-        del kwargs['persona']
-        del kwargs['consultorio']
-        self.paciente = Paciente(consultorio=self.consultorio,
-                                     persona=self.persona)
-        self.paciente.save()
-        
-        return super(PacienteCreateView, self).dispatch(*args, **kwargs)
-    
-    def get_redirect_url(self):
-        
-        return self.paciente.get_absolute_url()
-
-class PacienteDetailView(DetailView, LoginRequiredMixin):
-    
-    """Permite al :class:`User` doctor o secretaria ver los detalles de una
-    :class:`Persona` que tenga como paciente"""
-    
-    model = Paciente
-    template_name = 'consultorio/paciente_detail.html'
-    context_object_name = 'paciente'
-    slug_field = 'uuid'
-
-class PacienteUpdateView(UpdateView, LoginRequiredMixin):
-    
-    model = Paciente
-    form_class = PacienteForm
-    template_name = "consultorio/paciente_update.html"
-
-class TransaccionCreateView(BaseCreateView):
-    
-    """Permite agregar una :class:`Transaccion` entre un :class:`Consultorio`
-    y un :class:`Paciente`"""
-    
-    model = Transaccion
-    form_class = TransaccionForm
-    template_name = 'consultorio/transaccion.html'
-    
-    def dispatch(self, *args, **kwargs):
-        
-        self.paciente = get_object_or_404(Paciente, pk=kwargs['paciente'])
-        return super(TransaccionCreateView, self).dispatch(*args, **kwargs)
-    
-    def get_form_kwargs(self):
-        
-        kwargs = super(TransaccionCreateView, self).get_form_kwargs()
-        kwargs.update({'initial' : {'paciente' : self.paciente.id}})
-        return kwargs
-    
-    def form_valid(self, form):
-        
-        self.object = form.save(commit=False)
-        self.object.persona = self.paciente
-        self.object.save()
-        
-        return HttpResponseRedirect(self.get_success_url())
-
-class AgregarCitaCreateView(BaseCreateView):
-    
-    """Permite agregar una :class:`Cita` al consultorio"""
-    
-    model = Cita
-    form_class = CitaForm
-    template_name = "consultorio/paciente_create.html"
-
-class ConsultorioPacientes(ListView, LoginRequiredMixin):
-
-    model = Paciente
-    template_name = 'consultorio/pacientes_list.html'
-    
-    def dispatch(self, *args, **kwargs):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=kwargs['paciente'])
-        return super(ConsultorioPacientes, self).dispatch(*args, **kwargs)
-
-class EsperaPacientes(ListView, LoginRequiredMixin):
-
-    """Muestra la lista de :class:`Paciente` que se encuentran actualmente en
-    la Sala de Espera del :class:`Consultorio`"""
-
-    model = Esperador
-    template_name = 'consultorio/espera_list.html'
+class ConsultorioIndexView(ListView, ConsultorioPermissionMixin):
+    template_name = 'clinique/index.html'
+    paginate_by = 20
     context_object_name = 'pacientes'
-    
-    def dispatch(self, *args, **kwargs):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=kwargs['consultorio'])
-        return super(EsperaPacientes, self).dispatch(*args, **kwargs)
 
     def get_queryset(self):
-        
-        self.consultorio = get_object_or_404(Consultorio, pk=self.kwargs['consultorio'])
-        return Esperador.objects.filter(consultorio=self.consultorio, atendido=False)
+        return Paciente.objects.filter(
+            consultorio__usuario=self.request.user).all()
 
-class EsperadorAgregarView(RedirectView, LoginRequiredMixin):
-    
-    """Permite agregar un :class:`Paciente` a la sala de espera del consultorio en
-    el cual se esta trabajando actualmente"""
-    
-    permanent = False
-    
-    def get_redirect_url(self, **kwargs):
-        
-        paciente  = get_object_or_404(Paciente, pk=kwargs['paciente'])
-        esperador = Esperador()
-        esperador.consultorio = paciente.consultorio
-        esperador.paciente = paciente
-        esperador.save()
-        messages.info(self.request, u'¡Se agrego al paciente a la sala de espera!')
-        return reverse('consultorio-view', args=[esperador.consultorio.uuid])
-
-class EsperadorAtendido(RedirectView, LoginRequiredMixin):
-
-    permanent = False
-
-    def get_redirect_url(self, **kwargs):
-
-        esperador = get_object_or_404(Esperador, pk=kwargs['esperador'])
-        esperador.atendido = True
-        esperador.save()
-        messages.info(self.request, u'¡Se marco al Paciente como atendido!')
-        return reverse('consultorio-view', args=[esperador.consultorio.uuid])
-
-class PacienteBasecreateView(CreateView, LoginRequiredMixin):
-
-    """"Permite crear un formulario base para ingresar diversos tipos de datos
-    relacionados con un :class:`Paciente`"""
-
-    def dispatch(self, *args, **kwargs):
-        
-        self.paciente = get_object_or_404(Paciente, pk=kwargs['paciente'])
-        return super(PacienteBasecreateView, self).dispatch(*args, **kwargs)
-    
-    def get_form_kwargs(self):
-        
-        kwargs = super(PacienteBasecreateView, self).get_form_kwargs()
-        kwargs.update({'initial' : {'paciente' : self.paciente.id}})
-        return kwargs
-    
-    def form_valid(self, form):
-        
-        self.object = form.save(commit=False)
-        self.object.paciente = self.paciente
-        self.object.save()
-        
-        return HttpResponseRedirect(self.get_success_url())
-
-class ConsultaCreateView(PacienteBasecreateView):
-    
-    """Permite agregar una :class:`Consulta` a un :class:`Paciente`"""
-
-    model = Consulta
-    form_class = ConsultaForm
-    template_name = 'consultorio/consulta_form.html'
-
-class ConsultaDetailview(DetailView, LoginRequiredMixin):
-    
-    """Permite que el doctor pueda agregar los resultados de la
-    :class:`Consulta` a un :class:`Paciente`"""
-
-    model = Consulta
-    template_name = 'consultorio/consulta_detail.html'
-    context_object_name = 'consulta'
-
-class RecetaCreateView(PacienteBasecreateView):
-
-    model = Receta
-    form_class = RecetaForm
-    template_name = 'consultorio/receta_create.html'
-
-class RecetaDetailView(DetailView, LoginRequiredMixin):
-
-    model = Receta
-    template_name = 'consultorio/receta_detail.html'
-    context_object_name = 'receta'
-
-class OptometriaCreateView(PacienteBasecreateView):
-
-    """Permite a un medico agregar una :class:`Optometria` al
-    :class:`Paciente`"""
-
-    model = Optometria
-    form_class = OptometriaForm
-    template_name = 'consultorio/optometria_create.html'
-
-class OptometriaDetailView(DetailView, LoginRequiredMixin):
-
-    """Permite mostrar los valores ingresados en una :class:`Optometria`
-    ingresada por el medico"""
-
-    model = Optometria
-    template_name = 'consultorio/optometria_detail.html'
-    context_object_name = 'optometria'
-
-class HistoriaClinicaCreateView(PacienteBasecreateView):
-
-    """"Permite agregar entradas a la :class:`HistoriaClinica`  de un
-    :class:`Paciente`"""
-
-    model = HistoriaClinica
-    form_class = HistoriaClinicaForm
-    template_name = 'consultorio/historia_clinica_create.html'
-
-class PagoCreateView(PacienteBasecreateView):
-
-    """Permite crear nuevos :class:`Pago`s a un :class:`Paciente`"""
-
-    model = Pago
-    form_class = PagoForm
-    template_name = 'consultorio/pago_create.html'
-
-class PagoDiarioDetailView(ConsultorioDetailView):
-
-    """Muestra una lista con los :class:`Pago`s que han sido ingresados durante
-    una determinada fecha, reportando el monto total de los mismos"""
-
-    template_name = 'consultorio/pago_diario.html'
-    
     def get_context_data(self, **kwargs):
-        
-        context = super(PagoDiarioDetailView, self).get_context_data(**kwargs)
-        form = DiaForm(self.request.GET)
-        if not form.is_valid():
-            redirect(reverse(['consultorio-view', self.uuid]))
-        dia = form.cleaned_data['dia']
-        # obtener la fecha de nacimiento mínima
-        pagos = Pago.objects.filter(
-                                fecha_y_hora__year=dia.year,
-                                fecha_y_hora__month=dia.month,
-                                fecha_y_hora__day=dia.day,
-                                paciente__consultorio=context['consultorio'])
-        context['dia'] = dia
-        context['pagos'] = pagos
-        context['total'] = sum(p.monto for p in pagos.all())
+        context = super(ConsultorioIndexView, self).get_context_data(**kwargs)
+
+        if self.request.user.is_staff:
+            context['consultorios'] = Consultorio.objects.all()
 
         return context
+
+
+class ConsultorioDetailView(SingleObjectMixin, ListView, LoginRequiredMixin):
+    paginate_by = 20
+    template_name = 'clinique/consultorio_detail.html'
+
+    def get_context_data(self, **kwargs):
+        kwargs['consultorio'] = self.object
+        kwargs['buscar'] = PersonaSearchForm()
+        kwargs['buscar'].helper.form_action = 'persona-search'
+        return super(ConsultorioDetailView, self).get_context_data(**kwargs)
+
+    def get_queryset(self):
+        self.object = self.get_object(Consultorio.objects.all())
+        return self.object.pacientes.all()
+
+
+class ConsultorioCreateView(CurrentUserFormMixin, CreateView):
+    model = Consultorio
+    form_class = ConsultorioForm
+
+
+class ConsultorioMixin(View):
+    def dispatch(self, *args, **kwargs):
+        self.consultorio = get_object_or_404(Consultorio,
+                                             pk=kwargs['consultorio'])
+        return super(ConsultorioMixin, self).dispatch(*args, **kwargs)
+
+
+class ConsultorioFormMixin(ConsultorioMixin):
+    def get_initial(self):
+        initial = super(ConsultorioFormMixin, self).get_initial()
+        initial = initial.copy()
+        initial['consultorio'] = self.consultorio.id
+        return initial
+
+
+class PacienteCreateView(CreateView, PersonaFormMixin, ConsultorioFormMixin,
+                         LoginRequiredMixin):
+    """Permite agregar una :class:`Persona` como un :class:`Paciente` de un
+    doctor que tiene un :class:`User` en el sistema"""
+
+    model = Paciente
+    form_class = PacienteForm
+
+
+class PacienteDetailView(DetailView, LoginRequiredMixin):
+    """Permite ver los datos del :class"`Paciente` en la interfaz gráfica"""
+
+    model = Paciente
+    context_object_name = 'paciente'
+
+
+class PacienteMixin(View):
+    """Permite obtener un :class:`Paciente` desde los argumentos en una url"""
+
+    def dispatch(self, *args, **kwargs):
+        self.paciente = get_object_or_404(Paciente, pk=kwargs['paciente'])
+        return super(PacienteMixin, self).dispatch(*args, **kwargs)
+
+
+class PacienteFormMixin(FormMixin, PacienteMixin):
+    """Permite inicializar el paciente que se utilizará en un formulario"""
+
+    def get_initial(self):
+        initial = super(PacienteFormMixin, self).get_initial()
+        initial = initial.copy()
+        initial['paciente'] = self.paciente
+        return initial
+
+
+class CitaCreateView(CreateView, LoginRequiredMixin):
+    model = Cita
+    form_class = CitaForm
+
+
+class CitaPersonaCreateView(CreateView, PersonaFormMixin, LoginRequiredMixin):
+    model = Cita
+    form_class = CitaPersonaForm
+
+
+class CitaListView(ConsultorioMixin, ListView, LoginRequiredMixin):
+    model = Cita
+    context_object_name = 'citas'
+
+    def get_queryset(self):
+        self.citas = Cita.objects.filter(consultorio=self.consultorio,
+                                         fecha__gte=timezone.now())
+
+        return self.citas.all()
+
+    def get_context_data(self, **kwargs):
+        context = super(CitaListView, self).get_context_data(**kwargs)
+        context['consultorio'] = self.consultorio
+
+        fechas = defaultdict(list)
+
+        for cita in self.citas.all():
+            fechas[cita.fecha.date()].append(cita)
+
+        context['fechas'] = fechas.iteritems()
+        return context
+
+
+class EvaluacionCreateView(PacienteFormMixin, LoginRequiredMixin, CreateView):
+    model = Evaluacion
+    form_class = EvaluacionForm
+
+
+class ConsultaCreateView(PacienteFormMixin, CurrentUserFormMixin, CreateView,
+                         LoginRequiredMixin):
+    model = Consulta
+    form_class = ConsultaForm
+
+
+class SeguimientoCreateView(PacienteFormMixin, CurrentUserFormMixin, CreateView,
+                            LoginRequiredMixin):
+    model = Seguimiento
+    form_class = SeguimientoForm
+
+
+class LecturaSignosCreateView(PersonaFormMixin, ConsultorioMixin,
+                              LoginRequiredMixin, CreateView):
+    model = LecturaSignos
+    form_class = LecturaSignosForm
+
+    def get_success_url(self):
+
+        paciente = Paciente.objects.filter(persona=self.object.persona,
+                                           consultorio=self.consultorio).first()
+        if paciente is None:
+            paciente = Paciente()
+            paciente.persona = self.object.persona
+            paciente.consultorio = self.consultorio
+            paciente.save()
+
+        return paciente.get_absolute_url()
+
+
+class DiagnosticoCreateView(PacienteFormMixin, LoginRequiredMixin, CreateView):
+    model = DiagnosticoClinico
+    form_class = DiagnosticoClinicoForm
+
+
+class CliniquePersonaUpdateView(UpdateView, LoginRequiredMixin):
+    model = Persona
+    form_class = PersonaForm
+    template_name = 'clinique/persona_update.html'
+
+    def get_success_url(self):
+        return reverse('clinique-fisico-editar', args=[self.object.id])
+
+
+class CliniqueFisicoUpdateView(UpdateView, LoginRequiredMixin):
+    """
+    Permite actualizar los datos del :class:`Fisico` de una :class:`Persona`
+    """
+
+    model = Fisico
+    form_class = FisicoForm
+    template_name = 'clinique/fisico_update.html'
+
+    def get_success_url(self):
+        return reverse('clinique-antecedente-editar',
+                       args=[self.object.persona.id])
+
+
+class CliniqueAntecedenteUpdateView(UpdateView, LoginRequiredMixin):
+    """Permite actualizar los datos del :class:`Antecedente` de una
+    :class:`Persona`"""
+
+    model = Antecedente
+    form_class = AntecedenteForm
+    template_name = 'clinique/antecedente_update.html'
+
+    def get_success_url(self):
+        return reverse('clinique-antecedente-familiar-editar',
+                       args=[self.object.persona.id])
+
+
+class CliniqueAntecedenteFamiliarUpdateView(UpdateView, LoginRequiredMixin):
+    """Permite actualizar los datos del :class:`AntecedenteFamiliar` de una
+    :class:`Persona`"""
+
+    model = AntecedenteFamiliar
+    form_class = AntecedenteFamiliarForm
+    template_name = 'clinique/antecedente_familiar_update.html'
+
+    def get_success_url(self):
+        return reverse('clinique-estilovida-editar',
+                       args=[self.object.persona.id])
+
+
+class CliniqueAntecedenteObstetricoUpdateView(UpdateView, LoginRequiredMixin):
+    """Permite actualizar los datos del :class:`AntecedenteObstetrico` de una
+    :class:`Persona`"""
+
+    model = AntecedenteObstetrico
+    form_class = AntecedenteObstetricoForm
+    template_name = 'clinique/antecedente_obstetrico_update.html'
+
+
+class CliniqueAntecedenteQuirurgicoUpdateView(UpdateView, LoginRequiredMixin):
+    """Permite actualizar los datos del :class:`AntecedenteQuirurgico` de una
+    :class:`Persona`"""
+
+    model = AntecedenteQuirurgico
+    form_class = AntecedenteQuirurgicoForm
+    template_name = 'clinique/antecedente_quirurgico_update.html'
+
+    def get_success_url(self):
+        return reverse('clinique-antecedente-editar',
+                       args=[self.object.persona.id])
+
+
+class CliniqueAntecedenteQuirurgicoCreateView(CreateView, PersonaFormMixin,
+                                              PacienteMixin,
+                                              LoginRequiredMixin):
+    model = AntecedenteQuirurgico
+    form_class = AntecedenteQuirurgicoForm
+    template_name = 'clinique/antecedente_quirurgico_create.html'
+
+    def get_success_url(self):
+        return reverse('clinique-paciente', args=[self.paciente.id])
+
+
+class CliniqueEstiloVidaUpdateView(UpdateView, LoginRequiredMixin):
+    """Permite actualizar los datos del :class:`EstiloVida` de una
+    :class:`Persona`"""
+
+    model = EstiloVida
+    form_class = EstiloVidaForm
+    template_name = 'clinique/estilo_vida_update.html'
+
+
+class CargoCreateView(PacienteFormMixin, CreateView, LoginRequiredMixin):
+    model = Cargo
+    form_class = CargoForm
+
+
+class OrdenMedicaCreateView(PacienteFormMixin, CreateView, LoginRequiredMixin):
+    model = OrdenMedica
+    form_class = OrdenMedicaForm
+
+
+class NotaEnfermeriaCreateView(PacienteFormMixin, CreateView,
+                               CurrentUserFormMixin):
+    model = NotaEnfermeria
+    form_class = NotaEnfermeriaForm

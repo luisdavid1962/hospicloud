@@ -1,4 +1,4 @@
-<table class="table table-striped table-bordered">
+<table class="table table-striped table-responsive">
     <caption>Antecedentes Patol&oacute;gicos Personales</caption>
   <tr>
     <td class="data-label">Cardiopatías</td>
@@ -29,6 +29,16 @@
     <td class="patient-data">{{ antecedente.sinusitis|yesno:"Sí,No" }}</td>
     <td class="data-label">Migraña</td>
     <td class="patient-data">{{ antecedente.migrana|yesno:"Sí,No" }}</td>
+  </tr>
+  <tr>
+      <td class="data-label">Obesidad</td>
+      <td class="patient-data">{{ antecedente.obesidad|yesno:"Sí,No" }}</td>
+      <td class="data-label">Alcoholismo</td>
+      <td class="patient-data">{{ antecedente.alcoholismo|yesno:"Sí,No" }}</td>
+      <td class="data-label">Cancer</td>
+      <td class="patient-data">{{ antecedente.migrana|yesno:"Sí,No" }}</td>
+      <td class="data-label">Trigliceridos</td>
+      <td class="patient-data">{{ antecedente.trigliceridos|yesno:"Sí,No" }}</td>
   </tr>
   <tr>
     <td class="data-label">Hipertrigliceridemia</td>

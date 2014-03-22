@@ -14,23 +14,22 @@
 #
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library. If not, see <http://www.gnu.org/licenses/>.
-
+from collections import defaultdict
 from datetime import datetime, date
 import os
 import subprocess
 import tempfile
-
 import requests
 
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.core.urlresolvers import reverse
 from django.db import models
-from django.db.models import permalink
 from django_extensions.db.fields import UUIDField
 from django.contrib.auth.models import User
-from sorl.thumbnail import ImageField
+from django_extensions.db.models import TimeStampedModel
 
 from persona.models import Persona
-from inventory.models import ItemTemplate
+from inventory.models import ItemTemplate, TipoVenta
 
 
 class TipoExamen(models.Model):
@@ -46,6 +45,28 @@ class TipoExamen(models.Model):
         return self.nombre
 
 
+class Radiologo(TimeStampedModel):
+    """Especifica el especialista que efectua el diagnóstico del estudio
+    realizado"""
+
+    nombre = models.CharField(max_length=255, blank=True)
+    item = models.ForeignKey(ItemTemplate, blank=True, null=True)
+    porcentaje = models.IntegerField(default=30)
+
+    def __unicode__(self):
+        return self.nombre
+
+
+class Tecnico(TimeStampedModel):
+    nombre = models.CharField(max_length=255, blank=True)
+    item = models.ForeignKey(ItemTemplate, blank=True, null=True)
+    porcentaje = models.IntegerField(default=10)
+
+    def __unicode__(self):
+
+        return self.nombre
+
+
 class EstudioProgramado(models.Model):
     """Permite que se planifique un :class:`Examen` antes de
     efectuarlo"""
@@ -56,27 +77,30 @@ class EstudioProgramado(models.Model):
                                 related_name="estudios_progamados")
     tipo_de_examen = models.ForeignKey(TipoExamen, on_delete=models.CASCADE,
                                        related_name="estudios_progamados")
+    radiologo = models.ForeignKey(Radiologo, related_name='estudios')
     fecha = models.DateField(default=date.today)
     remitio = models.CharField(max_length=200)
-    radiologo = models.CharField(max_length=200, blank=True, null=True)
     efectuado = models.NullBooleanField(default=False)
+    tipo_de_venta = models.ForeignKey(TipoVenta, related_name='estudios')
+    tecnico = models.ForeignKey(Tecnico, blank=True, null=True,
+                                related_name='estudios')
 
-    @permalink
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
 
-        return 'estudio-detail-view', [self.id]
+        return reverse('estudio-detail-view', args=[self.id])
 
     def efectuar(self):
         """Marca el :class:`EstudioProgramado` y crea un :class:`Examen`
-        basandose
-        en los datos del primero"""
+        basandose en los datos del primero"""
 
         examen = Examen()
         examen.tipo_de_examen = self.tipo_de_examen
         examen.persona = self.persona
         examen.usuario = self.usuario
         examen.remitio = self.remitio
+        examen.radiologo = self.radiologo
+        examen.tipo_de_venta = self.tipo_de_venta
         examen.radiologo = self.radiologo
         self.efectuado = True
         self.save()
@@ -93,23 +117,40 @@ class Examen(models.Model):
     """Permite almacenar los datos de un estudio médico realizado a una
     :class:`Persona`"""
 
+    class Meta:
+        permissions = (
+            ('examen', 'Permite al usuario gestionar examenes'),
+        )
+
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE,
                                 related_name="examenes")
     tipo_de_examen = models.ForeignKey(TipoExamen, on_delete=models.CASCADE,
                                        related_name="examenes")
+    radiologo = models.ForeignKey(Radiologo, related_name='examenes')
     fecha = models.DateTimeField(default=datetime.now)
     uuid = UUIDField(version=4)
     usuario = models.ForeignKey(User, blank=True, null=True,
                                 related_name='estudios_realizados')
     remitio = models.CharField(max_length=200, null=True)
     facturado = models.NullBooleanField(default=False)
-    radiologo = models.CharField(max_length=200, blank=True, null=True)
+    tipo_de_venta = models.ForeignKey(TipoVenta, related_name='examenes')
+    tecnico = models.ForeignKey(Tecnico, blank=True, null=True,
+                                related_name='examenes')
 
-    @permalink
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
 
-        return 'examen-view-id', [self.uuid]
+        return reverse('examen-view-id', args=[self.uuid])
+
+    def facturar(self):
+        items = defaultdict(int)
+
+        items[self.tipo_de_examen.item] = 1
+
+        for estudio in self.estudios.all():
+            items[estudio.tipo_de_examen.item] = 1
+
+        return items
 
 
 class Imagen(models.Model):
@@ -117,14 +158,13 @@ class Imagen(models.Model):
 
     examen = models.ForeignKey(Examen, on_delete=models.CASCADE,
                                related_name='imagenes')
-    imagen = ImageField(upload_to="examen/imagen/%Y/%m/%d")
+    imagen = models.ImageField(upload_to="examen/imagen/%Y/%m/%d")
     descripcion = models.CharField(max_length=255, blank=True)
 
-    @permalink
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
 
-        return 'examen-view-id', [self.examen.uuid]
+        return reverse('examen-view-id', args=[self.examen.uuid])
 
 
 class Adjunto(models.Model):
@@ -135,11 +175,10 @@ class Adjunto(models.Model):
     archivo = models.FileField(upload_to='examen/adjunto/%Y/%m/%d')
     descripcion = models.CharField(max_length=255, blank=True)
 
-    @permalink
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
 
-        return 'examen-view-id', [self.examen.uuid]
+        return reverse('examen-view-id', args=[self.examen.uuid])
 
 
 class Dicom(models.Model):
@@ -153,7 +192,7 @@ class Dicom(models.Model):
     archivo = models.FileField(upload_to='examen/dicom/%Y/%m/%d')
     descripcion = models.CharField(max_length=255, blank=True)
     convertido = models.BooleanField(default=False)
-    imagen = ImageField(upload_to='examen/dicom/imagen/%Y/%m/%d',
+    imagen = models.ImageField(upload_to='examen/dicom/imagen/%Y/%m/%d',
                         blank=True)
     uuid = UUIDField(version=4)
 
@@ -174,7 +213,17 @@ class Dicom(models.Model):
         self.convertido = True
         self.save()
 
-    @permalink
     def get_absolute_url(self):
 
-        return 'examen-view-id', [self.examen.uuid]
+        return reverse('examen-view-id', args=[self.examen.uuid])
+
+
+class Estudio(TimeStampedModel):
+    examen = models.ForeignKey(Examen, related_name='estudios')
+    tipo_de_examen = models.ForeignKey(TipoExamen, on_delete=models.CASCADE,
+                                       related_name="estudios")
+
+    def get_absolute_url(self):
+        """Obtiene la URL absoluta"""
+
+        return reverse('examen-view-id', args=[self.examen.uuid])
