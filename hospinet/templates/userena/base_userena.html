@@ -16,8 +16,6 @@
     {% block header %}{% endblock %}
     <!-- Fav and touch icons -->
     <link rel="shortcut icon" href="{% static 'img/favicon.png' %}">
-    <script type="text/javascript" src="{% static 'js/jquery.min.js' %}"></script>
-    <script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
 </head>
 <body>
 {% if user.is_staff %}
@@ -25,16 +23,17 @@
 {% endif %}
 <div class="container fill">
     <div class="flex-container">
-    <div class="row translucent">
-        <div class="col-md-12">
+    <div class="row">
+        <div class="col-md-12 translucent">
             {% block content %}{% endblock content %}
         </div>
     </div>
     </div>
 </div>
+{% include 'snippets/footer.html' %}
 <script type="text/javascript" src="{% static 'js/jquery.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery-ui.min.js' %}"></script>
-<script type="text/javascript" src="{% static 'js/bootstrap.js' %}"></script>
+<script type="text/javascript" src="{% static 'js/bootstrap.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery-ui-timepicker.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery.pnotify.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'js/jquery.backstretch.min.js' %}"></script>

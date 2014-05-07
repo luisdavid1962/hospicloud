@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from persona.models import (Persona, Fisico, EstiloVida, Antecedente,
                             AntecedenteFamiliar, AntecedenteObstetrico,
-                            AntecedenteQuirurgico)
+                            AntecedenteQuirurgico, Empleador, Empleo)
 
 
 class FieldSetFormMixin(forms.Form):
@@ -113,6 +113,7 @@ class PersonaForm(FieldSetModelFormMixin):
 
     class Meta:
         model = Persona
+        exclude = ('duplicado', )
 
     nacimiento = forms.DateField(widget=DateWidget(), required=False,
                                  initial=timezone.now)
@@ -219,3 +220,31 @@ class PersonaSearchForm(FieldSetFormMixin):
         self.helper.layout = Fieldset(u'Buscar Persona', *self.field_names)
         self.helper.form_method = 'GET'
         self.helper.form_action = 'persona-search'
+
+
+class EmpleadorForm(FieldSetModelFormMixin):
+    class Meta:
+        model = Empleador
+
+    def __init__(self, *args, **kwargs):
+        super(AntecedenteQuirurgicoForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Datos del Empleador', *self.field_names)
+
+
+class EmpleoForm(BasePersonaForm):
+    class Meta:
+        model = Empleo
+
+    def __init__(self, *args, **kwargs):
+        super(EmpleoForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Datos de Empleo', *self.field_names)
+
+
+class PersonaDuplicateForm(FieldSetModelFormMixin):
+    class Meta:
+        model = Persona
+        fields = ('duplicado', )
+
+    def __init__(self, *args, **kwargs):
+        super(PersonaDuplicateForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Reportar Persona Duplicada', *self.field_names)
