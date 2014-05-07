@@ -22,7 +22,7 @@ from django.utils import timezone
 
 from persona.models import (Persona, Fisico, EstiloVida, Antecedente,
                             AntecedenteFamiliar, AntecedenteObstetrico,
-                            AntecedenteQuirurgico)
+                            AntecedenteQuirurgico, Empleador, Empleo)
 
 
 class FieldSetFormMixin(forms.Form):
@@ -61,7 +61,7 @@ class FieldSetModelFormMixin(forms.ModelForm):
 
 class DateWidget(forms.DateInput):
     """Permite mostrar un input preparado para fecha y hora utilizando
-    JQuery UI DateTimePicker"""
+    JQuery UI DatePicker"""
 
     def __init__(self, attrs=None):
         super(DateWidget, self).__init__(attrs)
@@ -69,6 +69,21 @@ class DateWidget(forms.DateInput):
             self.attrs = attrs.copy()
         else:
             self.attrs = {'class': 'datepicker'}
+
+        if not 'format' in self.attrs:
+            self.attrs['format'] = '%d/%m/%Y'
+
+
+class FutureDateWidget(forms.DateInput):
+    """Permite mostrar un input preparado para fecha y hora utilizando
+    JQuery UI DatePicker"""
+
+    def __init__(self, attrs=None):
+        super(FutureDateWidget, self).__init__(attrs)
+        if attrs is not None:
+            self.attrs = attrs.copy()
+        else:
+            self.attrs = {'class': 'future-datepicker'}
 
         if not 'format' in self.attrs:
             self.attrs['format'] = '%d/%m/%Y'
@@ -98,6 +113,7 @@ class PersonaForm(FieldSetModelFormMixin):
 
     class Meta:
         model = Persona
+        exclude = ('duplicado', )
 
     nacimiento = forms.DateField(widget=DateWidget(), required=False,
                                  initial=timezone.now)
@@ -141,7 +157,7 @@ class EstiloVidaForm(BasePersonaForm):
         model = EstiloVida
 
     def __init__(self, *args, **kwargs):
-        super(FisicoForm, self).__init__(*args, **kwargs)
+        super(EstiloVidaForm, self).__init__(*args, **kwargs)
         self.helper.layout = Fieldset(u'Editar Fisico', *self.field_names)
 
 
@@ -204,3 +220,31 @@ class PersonaSearchForm(FieldSetFormMixin):
         self.helper.layout = Fieldset(u'Buscar Persona', *self.field_names)
         self.helper.form_method = 'GET'
         self.helper.form_action = 'persona-search'
+
+
+class EmpleadorForm(FieldSetModelFormMixin):
+    class Meta:
+        model = Empleador
+
+    def __init__(self, *args, **kwargs):
+        super(AntecedenteQuirurgicoForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Datos del Empleador', *self.field_names)
+
+
+class EmpleoForm(BasePersonaForm):
+    class Meta:
+        model = Empleo
+
+    def __init__(self, *args, **kwargs):
+        super(EmpleoForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Datos de Empleo', *self.field_names)
+
+
+class PersonaDuplicateForm(FieldSetModelFormMixin):
+    class Meta:
+        model = Persona
+        fields = ('duplicado', )
+
+    def __init__(self, *args, **kwargs):
+        super(PersonaDuplicateForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Reportar Persona Duplicada', *self.field_names)

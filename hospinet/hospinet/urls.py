@@ -22,19 +22,9 @@ from hospinet.views import IndexView
 
 # Uncomment the next two lines to enable the admin:
 from django.contrib import admin
-from tastypie.api import Api
 admin.autodiscover()
-from persona.api import PersonaResource
-from nightingale.api import MedicamentoResource
-from inventory.api import ItemTemplateResource
-from spital.api import AdmisionResource, HabitacionResource
 
-v1_api = Api(api_name='mobile')
-v1_api.register(PersonaResource())
-v1_api.register(MedicamentoResource())
-v1_api.register(ItemTemplateResource())
-v1_api.register(AdmisionResource())
-v1_api.register(HabitacionResource())
+from api import v1_api
 
 urlpatterns = patterns('',
     # Uncomment the admin/doc line below to enable admin documentation:
@@ -42,7 +32,7 @@ urlpatterns = patterns('',
 
     # Uncomment the next line to enable the admin:
     url(r'^admin/', include(admin.site.urls)),
-    
+
     url(r'^$', IndexView.as_view(), name='home'),
     url(r'^persona/', include('persona.urls')),
     url(r'^examen/', include('imaging.urls')),
@@ -55,8 +45,10 @@ urlpatterns = patterns('',
     url(r'^caja/', include('invoice.urls')),
     url(r'^emergencia/', include('emergency.urls')),
     url(r'^bussiness/', include('statistics.urls')),
+    url(r'^contracts/', include('contracts.urls')),
     url(r'^api/', include(v1_api.urls)),
     url(r'^select2/', include('select2.urls')),
+    url(r'^users/', include('users.urls')),
 )
 
 urlpatterns += staticfiles_urlpatterns()

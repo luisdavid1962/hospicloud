@@ -1,13 +1,15 @@
-django>=1.5
-django_countries
-django-treemenus
-sorl-thumbnail
-django-tastypie
+Django>=1.6
+Pillow
+South
+django-bootstrap-pagination
+-e git://github.com/comoga/django-constance#egg=django-constance
+django-constance[database]
+django-countries
+django-crispy-forms
 django-extensions
-south
+-e git://github.com/SpectralAngel/django-select2-forms.git#egg=django-select2-forms-master
+django-tastypie
 django-templated-email
 django-userena
-django-bootstrap-pagination
-django-crispy-forms
-django-select2-forms
-django-constance[database]
+simplejson
+six

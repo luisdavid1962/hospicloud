@@ -24,7 +24,6 @@ from django.db import models
 from django_extensions.db.fields import UUIDField
 from django.contrib.auth.models import User
 from django_extensions.db.models import TimeStampedModel
-from sorl.thumbnail import ImageField
 
 from persona.models import Persona
 from inventory.models import ItemTemplate, TipoVenta
@@ -44,10 +43,24 @@ class TipoExamen(models.Model):
 
 
 class Radiologo(TimeStampedModel):
+    """Especifica el especialista que efectua el diagnóstico del estudio
+    realizado"""
+
     nombre = models.CharField(max_length=255, blank=True)
     item = models.ForeignKey(ItemTemplate, blank=True, null=True)
+    porcentaje = models.IntegerField(default=30)
 
     def __unicode__(self):
+        return self.nombre
+
+
+class Tecnico(TimeStampedModel):
+    nombre = models.CharField(max_length=255, blank=True)
+    item = models.ForeignKey(ItemTemplate, blank=True, null=True)
+    porcentaje = models.IntegerField(default=10)
+
+    def __unicode__(self):
+
         return self.nombre
 
 
@@ -66,6 +79,8 @@ class EstudioProgramado(models.Model):
     remitio = models.CharField(max_length=200)
     efectuado = models.NullBooleanField(default=False)
     tipo_de_venta = models.ForeignKey(TipoVenta, related_name='estudios')
+    tecnico = models.ForeignKey(Tecnico, blank=True, null=True,
+                                related_name='estudios')
 
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
@@ -99,6 +114,11 @@ class Examen(models.Model):
     """Permite almacenar los datos de un estudio médico realizado a una
     :class:`Persona`"""
 
+    class Meta:
+        permissions = (
+            ('examen', 'Permite al usuario gestionar examenes'),
+        )
+
     persona = models.ForeignKey(Persona, on_delete=models.CASCADE,
                                 related_name="examenes")
     tipo_de_examen = models.ForeignKey(TipoExamen, on_delete=models.CASCADE,
@@ -111,6 +131,8 @@ class Examen(models.Model):
     remitio = models.CharField(max_length=200, null=True)
     facturado = models.NullBooleanField(default=False)
     tipo_de_venta = models.ForeignKey(TipoVenta, related_name='examenes')
+    tecnico = models.ForeignKey(Tecnico, blank=True, null=True,
+                                related_name='examenes')
 
     def get_absolute_url(self):
         """Obtiene la URL absoluta"""
@@ -133,7 +155,7 @@ class Imagen(models.Model):
 
     examen = models.ForeignKey(Examen, on_delete=models.CASCADE,
                                related_name='imagenes')
-    imagen = ImageField(upload_to="examen/imagen/%Y/%m/%d")
+    imagen = models.ImageField(upload_to="examen/imagen/%Y/%m/%d")
     descripcion = models.CharField(max_length=255, blank=True)
 
     def get_absolute_url(self):
@@ -167,7 +189,7 @@ class Dicom(models.Model):
     archivo = models.FileField(upload_to='examen/dicom/%Y/%m/%d')
     descripcion = models.CharField(max_length=255, blank=True)
     convertido = models.BooleanField(default=False)
-    imagen = ImageField(upload_to='examen/dicom/imagen/%Y/%m/%d',
+    imagen = models.ImageField(upload_to='examen/dicom/imagen/%Y/%m/%d',
                         blank=True)
     uuid = UUIDField(version=4)
 

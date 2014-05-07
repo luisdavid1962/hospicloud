@@ -198,10 +198,9 @@ INSTALLED_APPS = (
     'emergency',
     'inventory',
     'statistics',
+    'contracts',
     # Third party apps go here
     'django_extensions',
-    'treemenus',
-    'sorl.thumbnail',
     'django_countries',
     'tastypie',
     'south',
@@ -248,6 +247,7 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.request',
     'django.contrib.auth.context_processors.auth',
     'django.contrib.messages.context_processors.messages',
+    'hospinet.context_processors.chat'
 )
 
 AUTH_PROFILE_MODULE = 'users.Profile'
@@ -268,8 +268,9 @@ CACHES = {
 ANONYMOUS_USER_ID = -1
 AUTH_PROFILE_MODULE = 'users.UserProfile'
 USE_THOUSAND_SEPARATOR = True
-LANGUAGE_CODE = 'es-NI'
+LANGUAGE_CODE = 'es-HN'
 TIME_ZONE = 'America/Tegucigalpa'
+USERENA_ACTIVATION_REQUIRED = False
 
 CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
 CONSTANCE_CONFIG = {
@@ -279,6 +280,8 @@ CONSTANCE_CONFIG = {
     'EXTRA_EMERGENCIA': (
     1, u'Cuenta utilizada para agregar tiempo extra de emergencias'),
     'DEPOSIT_PAYMENT': (1, u'Tipo de Pago para Abonos a cuenta'),
+    'CHAT': (u'http://www.example.com', u'Url para el chat interno'),
+    'ONLINE_HELP': (u'http://www.example.com', u'Url para ayuda en línea'),
 }
 
 
@@ -287,6 +290,4 @@ CONSTANCE_CONFIG = {
 #EMAIL_HOST_USER = 'me@gmail.com'
 #EMAIL_HOST_PASSWORD = 'password'
 
-#HAYSTACK_SIGNAL_PROCESSOR = 'queued_search.signals.QueuedSignalProcessor'
-QUEUE_BACKEND = 'dummy'
 CRISPY_TEMPLATE_PACK = 'bootstrap3'

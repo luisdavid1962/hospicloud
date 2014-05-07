@@ -14,9 +14,11 @@
 #
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library. If not, see <http://www.gnu.org/licenses/>.
+from django.contrib.auth.decorators import permission_required
 from django.db.models import Q
+from django.utils.decorators import method_decorator
 from django.views.generic import (CreateView, DetailView, UpdateView, ListView,
-                                  DeleteView)
+                                  DeleteView, View)
 from django.views.generic.detail import SingleObjectMixin
 from django.views.generic.base import TemplateView
 from django.shortcuts import get_object_or_404
@@ -35,19 +37,13 @@ from inventory.forms import (InventarioForm, ItemTemplateForm, ItemTypeForm,
                              ItemCompradoForm, ProveedorForm)
 
 
-class InventarioFormMixin(CreateView):
+class InventarioPermissionMixin(LoginRequiredMixin):
+    @method_decorator(permission_required('inventory.inventario'))
     def dispatch(self, *args, **kwargs):
-        self.inventario = get_object_or_404(Inventario, pk=kwargs['inventario'])
-        return super(InventarioFormMixin, self).dispatch(*args, **kwargs)
-
-    def get_initial(self):
-        initial = super(InventarioFormMixin, self).get_initial()
-        initial = initial.copy()
-        initial['inventario'] = self.inventario.id
-        return initial
+        return super(InventarioPermissionMixin, self).dispatch(*args, **kwargs)
 
 
-class IndexView(TemplateView, LoginRequiredMixin):
+class IndexView(TemplateView, InventarioPermissionMixin):
     template_name = 'inventory/index.html'
 
     def get_context_data(self, **kwargs):
@@ -58,6 +54,18 @@ class IndexView(TemplateView, LoginRequiredMixin):
         context['productoform'].helper.form_tag = False
 
         return context
+
+
+class InventarioFormMixin(CreateView):
+    def dispatch(self, *args, **kwargs):
+        self.inventario = get_object_or_404(Inventario, pk=kwargs['inventario'])
+        return super(InventarioFormMixin, self).dispatch(*args, **kwargs)
+
+    def get_initial(self):
+        initial = super(InventarioFormMixin, self).get_initial()
+        initial = initial.copy()
+        initial['inventario'] = self.inventario.id
+        return initial
 
 
 class ItemTemplateDetailView(DetailView, LoginRequiredMixin):
@@ -105,6 +113,16 @@ class InventarioDetailView(SingleObjectMixin, ListView, LoginRequiredMixin):
         return self.object.items.all()
 
 
+class InventarioMixin(View):
+    def dispatch(self, *args, **kwargs):
+        self.inventario = get_object_or_404(Inventario, pk=kwargs['inventario'])
+        return super(InventarioMixin, self).dispatch(*args, **kwargs)
+
+    def get_context_data(self, **kwargs):
+        kwargs['inventario'] = self.inventario
+        return super(InventarioMixin, self).get_context_data(**kwargs)
+
+
 class InventarioCreateView(CreateView, LoginRequiredMixin):
     model = Inventario
     form_class = InventarioForm
@@ -114,6 +132,16 @@ class ItemListView(ListView, LoginRequiredMixin):
     model = Item
     context_object_name = 'items'
     paginate_by = 10
+
+
+class ItemInventarioListView(InventarioMixin, ListView, LoginRequiredMixin):
+    model = Item
+    context_object_name = 'items'
+    paginate_by = 10
+
+    def get_queryset(self):
+
+        return Item.objects.filter(inventario=self.inventario).all()
 
 
 class ItemCreateView(InventarioFormMixin, LoginRequiredMixin):

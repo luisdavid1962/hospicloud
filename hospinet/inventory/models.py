@@ -26,6 +26,13 @@ from django.contrib.auth.models import User
 
 
 class Inventario(models.Model):
+
+
+    class Meta:
+        permissions = (
+            ('inventario', 'Permite al usuario gestionar inventario'),
+        )
+
     lugar = models.CharField(max_length=255, default='Bodega')
     puede_comprar = models.NullBooleanField(default=False, blank=True,
                                             null=True)
@@ -34,10 +41,11 @@ class Inventario(models.Model):
         return u"Inventario de {0}".format(self.lugar)
 
     def buscar_item(self, item_template):
-        qs = self.items.filter(plantilla=item_template)
-        r = list(qs[:1])
-        if r:
-            return r[0]
+        item = self.items.filter(plantilla=item_template).first()
+
+        if item:
+            return item
+
         return Item(inventario=self, plantilla=item_template)
 
     def get_absolute_url(self):
@@ -86,6 +94,8 @@ class ItemTemplate(TimeStampedModel):
                                        null=True, blank=True)
     comision = models.DecimalField(decimal_places=2, max_digits=4,
                                    default=Decimal("30.00"))
+    comision2 = models.DecimalField(decimal_places=2, max_digits=4,
+                                    default=Decimal("10.00"))
 
     def __unicode__(self):
         return self.descripcion
@@ -260,6 +270,11 @@ class ItemComprado(TimeStampedModel):
                              null=True)
     ingresado = models.BooleanField(default=False)
     cantidad = models.IntegerField(default=0)
+
+    def get_absolute_url(self):
+        """Obtiene la URL absoluta"""
+
+        return self.compra.get_absolute_url()
 
 
 class ItemAction(TimeStampedModel):

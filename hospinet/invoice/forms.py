@@ -29,7 +29,7 @@ from inventory.forms import FieldSetModelFormMixin
 from emergency.models import Emergencia
 from spital.models import Admision
 from imaging.models import Examen
-from inventory.models import ItemTemplate
+from inventory.models import ItemTemplate, ItemType
 from users.mixins import HiddenUserForm
 
 
@@ -83,13 +83,9 @@ class VentaForm(FieldSetModelFormMixin):
 
 
 class PeriodoForm(forms.Form):
-    inicio = forms.DateTimeField(widget=forms.DateInput(
-        attrs={'class': 'datepicker'}, format='%d/%m/%Y'),
-                                 input_formats=('%d/%m/%Y',))
+    inicio = forms.DateTimeField(widget=DateTimeWidget)
 
-    fin = forms.DateTimeField(widget=forms.DateInput(
-        attrs={'class': 'datepicker'}, format='%d/%m/%Y'),
-                              input_formats=('%d/%m/%Y',))
+    fin = forms.DateTimeField(widget=DateTimeWidget)
 
     def __init__(self, *args, **kwargs):
         super(PeriodoForm, self).__init__(*args, **kwargs)
@@ -132,7 +128,7 @@ class AdmisionFacturarForm(FieldSetModelFormMixin):
 class ExamenFacturarForm(FieldSetModelFormMixin):
     class Meta:
         model = Examen
-        fields = ('facturado', 'radiologo', 'remitio')
+        fields = ('facturado', 'radiologo', 'tecnico', 'remitio')
 
     def __init__(self, *args, **kwargs):
         super(ExamenFacturarForm, self).__init__(*args, **kwargs)
@@ -219,3 +215,8 @@ class VentaPeriodoForm(PeriodoForm):
         super(VentaPeriodoForm, self).__init__(*args, **kwargs)
         self.helper.layout = Fieldset(u'Detalle de Ventas de un Periodo',
                                       *self.field_names)
+
+
+class PeriodoAreaForm(PeriodoForm):
+    area = ModelChoiceField(name="", model="",
+                            queryset=ItemType.objects.all())
