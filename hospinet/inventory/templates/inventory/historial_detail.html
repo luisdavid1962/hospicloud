@@ -1,6 +1,15 @@
 {% extends 'base.html' %}
 {% load staticfiles %}
 {% block content %}
+<div class="row">
+  <div class="col-md-12">
+    <section class="page-header">
+      <h1>Histórico de {{ historial.inventario.lugar }} <small>{{ historial. }}</small></h1>
+    </section>
+  </div>
+</div>
+<div class="row">
+  <section class="col-md-9">
     <div class="row">
         <div class="col-md-12">
             <section class="page-header">
@@ -49,4 +58,15 @@
             </div>
         </aside>
     </div>
+<<<<<<< HEAD
+=======
+  </section>
+    <aside class="col-md-3">
+        <nav class="sidebar-nav">
+            <ul class="nav nav-stacked nav-tabs">
+            </ul>
+        </nav>
+    </aside>
+</div>
+>>>>>>> 0cacc36dfd0f633125e63821a8b9c90173fbd884
 {% endblock %}
