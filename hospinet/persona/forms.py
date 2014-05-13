@@ -72,6 +72,7 @@ class DateWidget(forms.DateInput):
 
         if not 'format' in self.attrs:
             self.attrs['format'] = '%d/%m/%Y'
+            self.attrs['data-date-format'] = 'DD/MM/YYYY'
 
 
 class FutureDateWidget(forms.DateInput):
@@ -87,6 +88,7 @@ class FutureDateWidget(forms.DateInput):
 
         if not 'format' in self.attrs:
             self.attrs['format'] = '%d/%m/%Y'
+            self.attrs['data-date-format'] = 'DD/MM/YYYY'
 
 
 class DateTimeWidget(forms.DateTimeInput):
@@ -94,7 +96,7 @@ class DateTimeWidget(forms.DateTimeInput):
     JQuery UI DateTimePicker"""
 
     class Media:
-        js = ('js/jquery-ui-timepicker.js',)
+        js = ('js/bootstrap-datetimepicker.min.js',)
 
     def __init__(self, attrs=None):
         super(DateTimeWidget, self).__init__(attrs)
@@ -105,6 +107,7 @@ class DateTimeWidget(forms.DateTimeInput):
 
         if not 'format' in self.attrs:
             self.attrs['format'] = '%d/%m/%Y %H:%M'
+            self.attrs['data-date-format'] = 'DD/MM/YYYY HH:MM'
 
 
 class PersonaForm(FieldSetModelFormMixin):
