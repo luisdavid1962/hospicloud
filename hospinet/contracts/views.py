@@ -38,7 +38,7 @@ from contracts.forms import (PlanForm, ContratoForm, PagoForm, EventoForm,
                              BeneficiarioForm, BeneficiarioPersonaForm,
                              LimiteEventoForm, PlanChoiceForm, MetaForm,
                              CancelacionForm, ContratoEmpresarialForm,
-                             EmpleadorChoiceForm)
+                             EmpleadorChoiceForm, VendedorPeriodoForm)
 from contracts.models import (Contrato, Plan, Pago, Evento, Vendedor,
                               TipoEvento, Beneficiario, LimiteEvento, Meta,
                               Cancelacion)
@@ -73,6 +73,9 @@ class IndexView(TemplateView, ContratoPermissionMixin):
         context['evento-periodo'] = PeriodoForm(prefix='evento-periodo')
         context['evento-periodo'].set_legend('Eventos de un Periodo')
         context['evento-periodo'].helper.form_action = 'evento-periodo'
+
+        context['vendedor-periodo'] = VendedorPeriodoForm(prefix='vendedor-periodo')
+        context['vendedor-periodo'].helper.form_action = 'vendedor-periodo'
 
         context['contrato-search'] = ContratoSearchForm(
             prefix='contrato-search')
@@ -138,6 +141,7 @@ class IndexView(TemplateView, ContratoPermissionMixin):
 
         morosos = [c for c in
                    Contrato.objects.filter(vencimiento__gte=self.fin,
+                                           cancelado=False,
                                            plan__empresarial=False).all() if
                    c.dias_mora() > 0]
         context['mora'] = len(morosos)
@@ -419,6 +423,20 @@ class ContratoListView(ListView, LoginRequiredMixin):
             cancelado=False,
             vencimiento__gte=timezone.now().date).all()
 
+    def get_context_data(self, **kwargs):
+
+        """Calculates the total morarorium and makes it available to the
+        template"""
+
+        context = super(ContratoListView, self).get_context_data(**kwargs)
+
+        contratos = self.get_queryset()
+        context['morosos'] = len([c for c in contratos if c.dias_mora() > 0])
+        if contratos.count() > 0:
+            context['percentage'] = context['morosos'] / float(contratos.count()) * 100
+
+        return context
+
 
 class ContratoEmpresarialListView(ListView, LoginRequiredMixin):
     model = Contrato
@@ -503,6 +521,11 @@ class PagoDeleteView(DeleteView, LoginRequiredMixin):
         return self.contrato.get_absolute_url()
 
 
+class PagoUpdateView(UpdateView, LoginRequiredMixin):
+    model = Pago
+    form_class = PagoForm
+
+
 class EventoCreateView(ContratoFormMixin):
     model = Evento
     form_class = EventoForm
@@ -576,6 +599,36 @@ class VendedorSearchView(FormView, LoginRequiredMixin):
 
     def get_success_url(self):
         return self.vendedor.get_absolute_url()
+
+
+class VendedorPeriodoView(TemplateView, LoginRequiredMixin):
+    """Muestra los contratos de un periodo"""
+    template_name = 'contracts/periodo.html'
+
+    def dispatch(self, request, *args, **kwargs):
+        self.form = VendedorPeriodoForm(request.GET, prefix='vendedor-periodo')
+
+        if self.form.is_valid():
+            self.inicio = self.form.cleaned_data['inicio']
+            self.fin = datetime.combine(self.form.cleaned_data['fin'], time.max)
+            vendedor = self.form.cleaned_data['vendedor']
+            self.contratos = Contrato.objects.filter(
+                inicio__gte=self.inicio,
+                inicio__lte=self.fin,
+                vendedor=vendedor,
+            )
+        return super(VendedorPeriodoView, self).dispatch(request, *args,
+                                                         **kwargs)
+
+    def get_context_data(self, **kwargs):
+        context = super(VendedorPeriodoView, self).get_context_data(**kwargs)
+
+        context['contratos'] = self.contratos
+        context['inicio'] = self.inicio
+        context['fin'] = self.fin
+        context['comision'] = sum(c.comision() for c in self.contratos.all())
+
+        return context
 
 
 class TipoEventoCreateView(CreateView, LoginRequiredMixin):
@@ -702,5 +755,6 @@ class CancelacionCreateView(ContratoFormMixin, CreateView, LoginRequiredMixin):
         self.object = form.save(commit=False)
         self.object.contrato.cancelado = True
         self.object.save()
+        self.object.contrato.save()
 
         return HttpResponseRedirect(self.get_success_url())

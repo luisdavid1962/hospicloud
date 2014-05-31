@@ -33,7 +33,8 @@ from contracts.views import (ContratoDetailView, PagoCreateView,
                              ContratoEmpresarialPersonaCreateView,
                              ContratoEmpresarialListView, EmpresaSearchView,
                              ContratoBeneficiarioListView, EventoPeriodoView,
-                             BeneficiarioDeleteView)
+                             BeneficiarioDeleteView, PagoUpdateView,
+                             VendedorPeriodoView)
 
 
 urlpatterns = patterns('',
@@ -99,6 +100,10 @@ urlpatterns = patterns('',
                            ContratoPeriodoView.as_view(),
                            name='contrato-periodo'),
 
+                       url(r'^vendedor/periodo',
+                           VendedorPeriodoView.as_view(),
+                           name='vendedor-periodo'),
+
                        url(r'^evento/periodo',
                            EventoPeriodoView.as_view(),
                            name='evento-periodo'),
@@ -118,6 +123,10 @@ urlpatterns = patterns('',
                        url(r'^pago/(?P<pk>\d+)/delete$',
                            PagoDeleteView.as_view(),
                            name='contrato-pago-delete'),
+
+                       url(r'^pago/(?P<pk>\d+)/update$',
+                           PagoUpdateView.as_view(),
+                           name='contrato-pago-update'),
 
                        url(r'^evento/(?P<pk>\d+)/delete$',
                            EventoDeleteView.as_view(),

@@ -180,7 +180,7 @@ INSTALLED_APPS = (
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.humanize',
-    #'django.contrib.sites',
+    'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
     # Uncomment the next line to enable the admin:
@@ -199,6 +199,7 @@ INSTALLED_APPS = (
     'inventory',
     'statistics',
     'contracts',
+    'lab',
     # Third party apps go here
     'django_extensions',
     'django_countries',
@@ -250,8 +251,6 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'hospinet.context_processors.chat'
 )
 
-AUTH_PROFILE_MODULE = 'users.Profile'
-
 AUTHENTICATION_BACKENDS = (
     'userena.backends.UserenaAuthenticationBackend',
     'guardian.backends.ObjectPermissionBackend',
@@ -268,8 +267,6 @@ CACHES = {
 ANONYMOUS_USER_ID = -1
 AUTH_PROFILE_MODULE = 'users.UserProfile'
 USE_THOUSAND_SEPARATOR = True
-LANGUAGE_CODE = 'es-HN'
-TIME_ZONE = 'America/Tegucigalpa'
 USERENA_ACTIVATION_REQUIRED = False
 
 CONSTANCE_BACKEND = 'constance.backends.database.DatabaseBackend'
@@ -293,3 +290,7 @@ CONSTANCE_CONFIG = {
 DEFAULT_FILE_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
 STATICFILES_STORAGE = 'storages.backends.s3boto.S3BotoStorage'
 CRISPY_TEMPLATE_PACK = 'bootstrap3'
+
+SOUTH_MIGRATION_MODULES = {
+    'easy_thumbnails': 'easy_thumbnails.south_migrations',
+}

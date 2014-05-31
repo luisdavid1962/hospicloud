@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU Lesser General Public
 # License along with this library. If not, see <http://www.gnu.org/licenses/>.
 import calendar
-from datetime import date
+from datetime import date, timedelta
 import operator
 
 from django.contrib.auth.models import User
@@ -71,6 +71,7 @@ class Plan(TimeStampedModel):
     empresarial = models.BooleanField(default=False)
     empresa = models.ForeignKey(Empleador, null=True, blank=True,
                                 related_name='planes')
+    comision = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     def __unicode__(self):
         return self.nombre
@@ -163,9 +164,10 @@ class Contrato(TimeStampedModel):
 
     def dias_mora(self):
         """Dias extra que pasaron desde el ultimo pago"""
+        pagos = self.pagos.filter(precio=self.plan.precio, ciclo=True).count()
         ahora = timezone.now().date()
-        pago = self.ultimo_pago.date()
-        delta = ahora - pago
+        cobertura = self.inicio + timedelta(pagos * 30)
+        delta = ahora - cobertura
         dias = delta.days
         if dias < 0:
             dias = 0
@@ -185,6 +187,10 @@ class Contrato(TimeStampedModel):
             dias -= 30
 
         return mora * self.plan.precio
+
+    def comision(self):
+
+        return self.plan.precio * self.plan.comision
 
 
 class Beneficiario(TimeStampedModel):
@@ -217,6 +223,7 @@ class Pago(TimeStampedModel):
     precio = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     descripcion = models.TextField(null=True, blank=True)
     facturar = models.BooleanField(default=False)
+    ciclo = models.BooleanField(default=False)
 
     def get_absolute_url(self):
         """Obtiene la url relacionada con un :class:`Pago`"""

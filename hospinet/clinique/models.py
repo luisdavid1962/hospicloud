@@ -273,3 +273,24 @@ class Prescripcion(TimeStampedModel):
     def get_absolute_url(self):
 
         return self.paciente.get_absolute_url()
+
+
+class Incapacidad(TimeStampedModel):
+    paciente = models.ForeignKey(Paciente, related_name='incapacidades')
+    consultorio = models.ForeignKey(Consultorio, related_name='incapacidades')
+    descripcion = models.TextField()
+
+    def get_absolute_url(self):
+
+        return self.paciente.get_absolute_url()
+
+
+class Reporte(TimeStampedModel):
+    consultorio = models.ForeignKey(Consultorio, related_name='reportes',
+                                    blank=True, null=True)
+    archivo = models.FileField(upload_to='consultorio/reports/%Y/%m/%d')
+    fecha = models.DateTimeField(default=timezone.now, null=True, blank=True)
+
+    def get_absolute_url(self):
+
+        return self.consultorio.get_absolute_url()

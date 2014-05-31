@@ -9,12 +9,8 @@
   </section>
 </div>
 <div class="row">
-  <aside class="col-md-3">
-    <nav class="sidebar-nav">
-    </nav>
-  </aside>
   <div class="col-md-9 table-responsive">
-    <table class="table">
+    <table class="table table-striped">
         <thead>
             <tr>
                 <th>Identidad</th>
@@ -29,11 +25,19 @@
                 <td>{{ paciente.identificacion }}</td>
                 <td><a href="{% url 'clinique-paciente' paciente.id %}">{{ paciente }}</a></td>
                 <td>{{ paciente.persona.obtener_edad }}</td>
-                <td><a class="btn btn-success" href="{% url 'clinique-paciente-delete' paciente.id %}"><i class="fa fa-trash-o"></i> Eliminar</a></td>
+                <td>
+                    <a class="btn btn-success" href="{% url 'clinique-paciente-delete' paciente.id %}"><i class="fa fa-trash-o"></i> Eliminar</a>
+                </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
   </div>
+    <aside class="col-md-3">
+        <div class="toolbox col-md-12">
+            <nav class="sidebar-nav">
+            </nav>
+        </div>
+    </aside>
 </div>
 {% endblock %}

@@ -23,7 +23,9 @@ from select2.fields import ModelChoiceField
 from clinique.models import (Paciente, Cita, Evaluacion, Seguimiento,
                              Consulta, LecturaSignos, Consultorio,
                              DiagnosticoClinico, Cargo, OrdenMedica,
-                             NotaEnfermeria, Examen, Espera, Prescripcion)
+                             NotaEnfermeria, Examen, Espera, Prescripcion,
+                             Incapacidad, Reporte)
+from invoice.forms import PeriodoForm
 from persona.forms import FieldSetModelFormMixin, DateTimeWidget, \
     BasePersonaForm, \
     FieldSetFormMixin
@@ -232,3 +234,21 @@ class PrescripcionForm(PacienteFormMixin):
     def __init__(self, *args, **kwargs):
         super(PrescripcionForm, self).__init__(*args, **kwargs)
         self.helper.layout = Fieldset(u'Agregar Prescripcion', *self.field_names)
+
+
+class IncapacidadForm(PacienteFormMixin):
+    class Meta:
+        model = Incapacidad
+
+    def __init__(self, *args, **kwargs):
+        super(IncapacidadForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Agregar Incapacidad', *self.field_names)
+
+
+class ReporteForm(ConsultorioFormMixin):
+    class Meta:
+        model = Reporte
+
+    def __init__(self, *args, **kwargs):
+        super(ReporteForm, self).__init__(*args, **kwargs)
+        self.helper.layout = Fieldset(u'Agregar Reporte', *self.field_names)
