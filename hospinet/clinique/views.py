@@ -563,16 +563,19 @@ class DiagnosticoUpdateView(UpdateView, LoginRequiredMixin):
     form_class = DiagnosticoClinicoForm
 
 
-class CliniquePersonaUpdateView(UpdateView, LoginRequiredMixin):
+class CliniquePacienteUpdateView(UpdateView):
+
+    def get_success_url(self):
+        return self.object.persona.get_absolute_url()
+
+
+class CliniquePersonaUpdateView(CliniquePacienteUpdateView, LoginRequiredMixin):
     model = Persona
     form_class = PersonaForm
     template_name = 'clinique/persona_update.html'
 
-    def get_success_url(self):
-        return reverse('clinique-fisico-editar', args=[self.object.id])
 
-
-class CliniqueFisicoUpdateView(UpdateView, LoginRequiredMixin):
+class CliniqueFisicoUpdateView(CliniquePacienteUpdateView, LoginRequiredMixin):
     """
     Permite actualizar los datos del :class:`Fisico` de una :class:`Persona`
     """
@@ -581,12 +584,8 @@ class CliniqueFisicoUpdateView(UpdateView, LoginRequiredMixin):
     form_class = FisicoForm
     template_name = 'clinique/fisico_update.html'
 
-    def get_success_url(self):
-        return reverse('clinique-antecedente-editar',
-                       args=[self.object.persona.id])
 
-
-class CliniqueAntecedenteUpdateView(UpdateView, LoginRequiredMixin):
+class CliniqueAntecedenteUpdateView(CliniquePacienteUpdateView, LoginRequiredMixin):
     """Permite actualizar los datos del :class:`Antecedente` de una
     :class:`Persona`"""
 
@@ -594,19 +593,12 @@ class CliniqueAntecedenteUpdateView(UpdateView, LoginRequiredMixin):
     form_class = AntecedenteForm
     template_name = 'clinique/antecedente_update.html'
 
-    def get_success_url(self):
-        return reverse('clinique-antecedente-familiar-editar',
-                       args=[self.object.persona.id])
+
+class CliniqueAntecedenteObstetricoCreateView(AntecedenteObstetricoCreateView, CliniquePacienteUpdateView):
+    model = AntecedenteObstetrico
 
 
-class CliniqueAntecedenteObstetricoCreateView(AntecedenteObstetricoCreateView):
-
-    def get_success_url(self):
-        return reverse('clinique-antecedente-editar',
-                       args=[self.object.persona.id])
-
-
-class CliniqueAntecedenteFamiliarUpdateView(UpdateView, LoginRequiredMixin):
+class CliniqueAntecedenteFamiliarUpdateView(CliniquePacienteUpdateView, LoginRequiredMixin):
     """Permite actualizar los datos del :class:`AntecedenteFamiliar` de una
     :class:`Persona`"""
 
@@ -614,12 +606,8 @@ class CliniqueAntecedenteFamiliarUpdateView(UpdateView, LoginRequiredMixin):
     form_class = AntecedenteFamiliarForm
     template_name = 'clinique/antecedente_familiar_update.html'
 
-    def get_success_url(self):
-        return reverse('clinique-estilovida-editar',
-                       args=[self.object.persona.id])
 
-
-class CliniqueAntecedenteObstetricoUpdateView(UpdateView, LoginRequiredMixin):
+class CliniqueAntecedenteObstetricoUpdateView(CliniquePacienteUpdateView, LoginRequiredMixin):
     """Permite actualizar los datos del :class:`AntecedenteObstetrico` de una
     :class:`Persona`"""
 
@@ -628,17 +616,13 @@ class CliniqueAntecedenteObstetricoUpdateView(UpdateView, LoginRequiredMixin):
     template_name = 'clinique/antecedente_obstetrico_update.html'
 
 
-class CliniqueAntecedenteQuirurgicoUpdateView(UpdateView, LoginRequiredMixin):
+class CliniqueAntecedenteQuirurgicoUpdateView(CliniquePacienteUpdateView, LoginRequiredMixin):
     """Permite actualizar los datos del :class:`AntecedenteQuirurgico` de una
     :class:`Persona`"""
 
     model = AntecedenteQuirurgico
     form_class = AntecedenteQuirurgicoForm
     template_name = 'clinique/antecedente_quirurgico_update.html'
-
-    def get_success_url(self):
-        return reverse('clinique-antecedente-editar',
-                       args=[self.object.persona.id])
 
 
 class CliniqueAntecedenteQuirurgicoCreateView(CreateView, PersonaFormMixin,
@@ -649,7 +633,7 @@ class CliniqueAntecedenteQuirurgicoCreateView(CreateView, PersonaFormMixin,
     template_name = 'clinique/antecedente_quirurgico_create.html'
 
     def get_success_url(self):
-        return reverse('clinique-paciente', args=[self.paciente.id])
+        return self.paciente.get_absolute_url()
 
 
 class CliniqueEstiloVidaUpdateView(UpdateView, LoginRequiredMixin):
